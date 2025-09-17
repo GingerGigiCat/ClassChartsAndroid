@@ -22,9 +22,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
+import kotlin.math.truncate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,7 +36,7 @@ class MainActivity : ComponentActivity() {
             ClassChartsAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     HomeworkCard(
-                        homework = Homework("Music", "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows", complete = false),
+                        homework = Homework(title = "Improvisation Practice", complete = false, teacher = "Mr. Teacher", subject = "Music", body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"),
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -43,7 +45,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class Homework(val title: String, val body: String, val complete: Boolean) //val startDate: String, val endDate: String)
+data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: String) //val startDate: String, val endDate: String)
 
 @Composable
 fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier) {
@@ -54,10 +56,12 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier) {
             ){
                 Checkbox(checked = false, onCheckedChange = null)
                 Spacer(modifier = Modifier.width(15.dp))
-                Text(text = homework.title, style = typography.titleLarge)
+                Text(text = homework.title, style = typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(modifier = Modifier.height(10.dp))
-            Text(text = homework.body)
+            Text(text = homework.subject + " - " + homework.teacher, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(text = homework.body, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -68,7 +72,7 @@ fun GreetingPreview() {
     ClassChartsAndroidTheme {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             HomeworkCard(
-                homework = Homework("Music", "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows", complete = false),
+                homework = Homework(title = "Modal Jazz Improvisation", complete = false, teacher = "Mr. Teacher", subject = "Music", body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"),
                 modifier = Modifier.padding(innerPadding)
             )
         }
