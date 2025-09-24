@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.typography
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -39,10 +40,29 @@ class MainActivity : ComponentActivity() {
         setContent {
             ClassChartsAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    HomeworkCard(
-                        homework = Homework(title = "Improvisation Practice", complete = false, teacher = "Mr. Teacher", subject = "Music", body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"),
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    Column(modifier = Modifier.padding(innerPadding)) {
+                        ShowCompletedHomeworksToggle()
+                        HomeworkCard(
+                            homework = Homework(
+                                title = "Modal Jazz Improvisation",
+                                complete = true,
+                                teacher = "Mr. Teacher",
+                                subject = "Music",
+                                body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"
+                            ),
+                            compact = true
+                        )
+                        HomeworkCard(
+                            homework = Homework(
+                                title = "Modal Jazz Improvisation",
+                                complete = false,
+                                teacher = "Mr. Teacher",
+                                subject = "Music",
+                                body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"
+                            ),
+                            compact = false
+                        )
+                    }
                 }
             }
         }
@@ -58,20 +78,22 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ){
-                Checkbox(checked = false, onCheckedChange = null)
+                Checkbox(checked = homework.complete, onCheckedChange = null)
                 Spacer(modifier = Modifier.width(15.dp))
                 Column {
                     Text(
                         text = homework.title,
                         style = typography.titleLarge,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (compact) {
                         Text(
                             text = homework.subject + " - " + homework.teacher,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -81,10 +103,16 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                 Text(
                     text = homework.subject + " - " + homework.teacher,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(text = homework.body, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = homework.body,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -112,7 +140,7 @@ fun GreetingPreview() {
                 HomeworkCard(
                     homework = Homework(
                         title = "Modal Jazz Improvisation",
-                        complete = false,
+                        complete = true,
                         teacher = "Mr. Teacher",
                         subject = "Music",
                         body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"
