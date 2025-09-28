@@ -83,7 +83,7 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                 Column {
                     Text(
                         text = homework.title,
-                        style = typography.titleLarge,
+                        style = MaterialTheme.typography.titleLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface

@@ -46,7 +46,7 @@ class RequestMaker {
             studentloginresponse = jsonResponse.toMap()
         }
 
-        token = studentloginresponse?.get("meta")?.get("session_id") as String?
+        token = studentloginresponse?.get("meta").get("session_id") as String?
     }
 
 }
