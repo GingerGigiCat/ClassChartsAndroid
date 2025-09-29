@@ -1,12 +1,16 @@
 package com.gigi.classchartsandroid
+import androidx.compose.foundation.layout.Row
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import okhttp3.FormBody
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okio.IOException
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDate
 
 fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // borrowed from stackoverflow, converts json to a kotlin friendly object
     when (val value = this[it])
@@ -26,10 +30,12 @@ class RequestMaker {
     private val client = OkHttpClient()
     val gson = Gson()
     var sessionId: String? = null
+    var studentId: String? = null
     var studentLoginResponse: JsonObject? = null
     var name: String = ""
     var f_name: String = ""
     var l_name: String = ""
+
     constructor()
 
     constructor(id: String, dob: String) {
@@ -51,6 +57,7 @@ class RequestMaker {
         }
 
         sessionId = studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
+        studentId = id
     }
 
     constructor(session_id: String) {
@@ -75,10 +82,42 @@ class RequestMaker {
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             try {
                 sessionId = jsonResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
+                studentId = jsonResponse?.getAsJsonObject("data")?.getAsJsonObject("user")?.get("id")?.asString
                 return true
             }
             catch (e: Error) {
                 return false
+            }
+        }
+    }
+
+    fun getHomeworks(startDate: LocalDate = LocalDate.now().minusDays(28),
+                     endDate: LocalDate = LocalDate.now().plusDays(28)): String? {
+        // To get current date: LocalDate.now()
+
+        val requestBody = FormBody.Builder()
+            .build()
+
+        val url = "https://www.classcharts.com/apiv2student/homeworks/$studentId".toHttpUrlOrNull()!!
+            .newBuilder()
+            .addQueryParameter("display_date", "due_date")
+            .addQueryParameter("from", startDate.toString())
+            .addQueryParameter("to", endDate.toString())
+            .build()
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Basic $sessionId")
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
+            val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            try {
+                return jsonResponse.getAsJsonArray("data").asString
+            }
+            catch (e: Error) {
+                return null
             }
         }
     }
