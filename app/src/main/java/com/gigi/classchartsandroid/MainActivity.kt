@@ -48,7 +48,15 @@ class MainActivity : ComponentActivity() {
                                 complete = true,
                                 teacher = "Mr. Teacher",
                                 subject = "Music",
-                                body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"
+                                body = "this is a music homework you have to do a lot of work " +
+                                        "for this because obviously of course you do what more " +
+                                        "would you expect from homework and this is supposed to " +
+                                        "be a really loioooonmg description explaining everything " +
+                                        "you need to do for the task like questyion a question b " +
+                                        "question cquestion d and all of thsose so that it can show " +
+                                        "what happens when the content is long, hopefully it will " +
+                                        "collapse the text and then you can see the whole thing " +
+                                        "when you clickk on me but who knows"
                             ),
                             compact = true
                         )
@@ -58,7 +66,15 @@ class MainActivity : ComponentActivity() {
                                 complete = false,
                                 teacher = "Mr. Teacher",
                                 subject = "Music",
-                                body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"
+                                body = "this is a music homework you have to do a lot of work " +
+                                        "for this because obviously of course you do what more " +
+                                        "would you expect from homework and this is supposed to " +
+                                        "be a really loioooonmg description explaining everything " +
+                                        "you need to do for the task like questyion a question b " +
+                                        "question cquestion d and all of thsose so that it can show " +
+                                        "what happens when the content is long, hopefully it will " +
+                                        "collapse the text and then you can see the whole thing " +
+                                        "when you clickk on me but who knows"
                             ),
                             compact = false
                         )

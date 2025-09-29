@@ -1,8 +1,10 @@
 package com.gigi.classchartsandroid
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okio.IOException
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -22,15 +24,19 @@ fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // 
 
 class RequestMaker {
     private val client = OkHttpClient()
-    var token: String? = null
-    var studentloginresponse: Map<String, *>? = null
+    val gson = Gson()
+    var sessionId: String? = null
+    var studentLoginResponse: JsonObject? = null
+    var name: String = ""
+    var f_name: String = ""
+    var l_name: String = ""
     constructor()
 
     constructor(id: String, dob: String) {
         val requestBody = FormBody.Builder()
             .add("code", id)
             .add("remember", "true")
-            .add("recaptcha-token", "no-token-available")
+            .add("recaptcha-session_id", "no-session_id-available")
             .add("dob", dob)
             .build()
 
@@ -41,12 +47,40 @@ class RequestMaker {
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
-
-            val jsonResponse = JSONObject(response.body.string())
-            studentloginresponse = jsonResponse.toMap()
+            studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
         }
 
-        token = studentloginresponse?.get("meta").get("session_id") as String?
+        sessionId = studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
+    }
+
+    constructor(session_id: String) {
+        sessionId = session_id
+
+        if (!studentPing()) throw IOException("Ping no work, check internet? Or reauth")
+    }
+
+    fun studentPing(): Boolean {
+        val requestBody = FormBody.Builder()
+            .add("include_data", "true")
+            .build()
+
+        val request = Request.Builder()
+            .url("https://www.classcharts.com/apiv2student/ping")
+            .header("Authorization", "Basic $sessionId")
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
+            val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            try {
+                sessionId = jsonResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
+                return true
+            }
+            catch (e: Error) {
+                return false
+            }
+        }
     }
 
 }
