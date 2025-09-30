@@ -52,13 +52,13 @@ class RequestMaker {
             .post(requestBody)
             .build()
 
+
         client.newCall(request).execute().use { response -> // TODO: Error here
             if (!response.isSuccessful) print(response)//throw _root_ide_package_.okio.IOException("Unexpected code $response")
             studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            sessionId = studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
+            studentId = id
         }
-
-        sessionId = studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
-        studentId = id
     }
 
     constructor(session_id: String) {

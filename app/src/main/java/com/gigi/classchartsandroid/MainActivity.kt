@@ -3,6 +3,7 @@ package com.gigi.classchartsandroid
 import android.R
 import android.content.res.Configuration
 import android.os.Bundle
+import android.os.StrictMode
 import android.widget.ToggleButton
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +44,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val requestMaker = RequestMaker("CODE", "DOB")
+        StrictMode.setThreadPolicy(
+            StrictMode.ThreadPolicy.Builder().permitAll().build()
+        )
+
+        val requestMaker = RequestMaker("ID", "DOB")
         val homeworksList: MutableList<Homework> = mutableListOf()
         for (i in requestMaker.getHomeworks()!!) {
             homeworksList += Homework(
@@ -55,10 +62,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             ClassChartsAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Column(modifier = Modifier.padding(innerPadding)) {
+                    Column(modifier = Modifier.padding(innerPadding)
+                        .verticalScroll(rememberScrollState()
+                    )) {
                         ShowCompletedHomeworksToggle()
                         for (i in homeworksList) {
-                            HomeworkCard(homework = i, compact = false)
+                            HomeworkCard(homework = i, compact = true)
                         }
                         HomeworkCard(
                             homework = Homework(
