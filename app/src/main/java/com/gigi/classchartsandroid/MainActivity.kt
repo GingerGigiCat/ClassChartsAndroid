@@ -26,22 +26,40 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
+import java.time.LocalDate
 import java.util.Date
 import kotlin.math.truncate
+import com.gigi.classchartsandroid.RequestMaker.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val requestMaker = RequestMaker("CODE", "DOB")
+        val homeworksList: MutableList<Homework> = mutableListOf()
+        for (i in requestMaker.getHomeworks()!!) {
+            homeworksList += Homework(
+                title = i.asJsonObject.get("title").asString,
+                complete = false,
+                teacher = i.asJsonObject.get("teacher").asString,
+                subject = i.asJsonObject.get("subject").asString,
+                body = i.asJsonObject.get("description").asString
+            )
+        }
         setContent {
             ClassChartsAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(modifier = Modifier.padding(innerPadding)) {
                         ShowCompletedHomeworksToggle()
+                        for (i in homeworksList) {
+                            HomeworkCard(homework = i, compact = false)
+                        }
                         HomeworkCard(
                             homework = Homework(
                                 title = "Modal Jazz Improvisation",
@@ -85,7 +103,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: String) //val startDate: String, val endDate: String)
+//data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: String, val dueDate: LocalDate? = null)
 
 @Composable
 fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boolean = false) {

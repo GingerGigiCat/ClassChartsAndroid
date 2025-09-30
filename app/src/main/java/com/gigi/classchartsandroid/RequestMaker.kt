@@ -1,9 +1,8 @@
 package com.gigi.classchartsandroid
-import androidx.compose.foundation.layout.Row
 import com.google.gson.Gson
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import okhttp3.FormBody
-import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -25,6 +24,8 @@ fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // 
         else            -> value
     }
 }
+
+data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: String, val dueDate: LocalDate? = null)
 
 class RequestMaker {
     private val client = OkHttpClient()
@@ -51,8 +52,8 @@ class RequestMaker {
             .post(requestBody)
             .build()
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
+        client.newCall(request).execute().use { response -> // TODO: Error here
+            if (!response.isSuccessful) print(response)//throw _root_ide_package_.okio.IOException("Unexpected code $response")
             studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
         }
 
@@ -92,7 +93,7 @@ class RequestMaker {
     }
 
     fun getHomeworks(startDate: LocalDate = LocalDate.now().minusDays(28),
-                     endDate: LocalDate = LocalDate.now().plusDays(28)): String? {
+                     endDate: LocalDate = LocalDate.now().plusDays(28)): JsonArray? {
         // To get current date: LocalDate.now()
 
         val requestBody = FormBody.Builder()
@@ -114,7 +115,7 @@ class RequestMaker {
             if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             try {
-                return jsonResponse.getAsJsonArray("data").asString
+                return jsonResponse.getAsJsonArray("data")
             }
             catch (e: Error) {
                 return null
