@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -48,63 +50,32 @@ class MainActivity : ComponentActivity() {
             StrictMode.ThreadPolicy.Builder().permitAll().build()
         )
 
-        val requestMaker = RequestMaker("ID", "DOB")
+        val requestMaker = RequestMaker("id", "dob")
         val homeworksList: MutableList<Homework> = mutableListOf()
         for (i in requestMaker.getHomeworks()!!) {
             homeworksList += Homework(
-                title = i.asJsonObject.get("title").asString,
-                complete = false,
-                teacher = i.asJsonObject.get("teacher").asString,
-                subject = i.asJsonObject.get("subject").asString,
-                body = i.asJsonObject.get("description").asString
+                title = i.asJsonObject.get("title")!!.asString,
+                complete = requestMaker.yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString),
+                teacher = i.asJsonObject.get("teacher")!!.asString,
+                subject = i.asJsonObject.get("subject")!!.asString,
+                body = i.asJsonObject.get("description")!!.asString
             )
         }
         setContent {
             ClassChartsAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Column(modifier = Modifier.padding(innerPadding)
-                        .verticalScroll(rememberScrollState()
-                    )) {
-                        ShowCompletedHomeworksToggle()
-                        for (i in homeworksList) {
-                            HomeworkCard(homework = i, compact = true)
+                    Column(modifier = Modifier.padding(innerPadding)) {
+
+                        LazyColumn(
+                            modifier = Modifier.padding(innerPadding)
+                                .verticalScroll(
+                                    rememberScrollState()
+                                )
+                        ) {
+                            items(homeworksList) { homework ->
+                                HomeworkCard(homework = homework, compact = true)
+                            }
                         }
-                        HomeworkCard(
-                            homework = Homework(
-                                title = "Modal Jazz Improvisation",
-                                complete = true,
-                                teacher = "Mr. Teacher",
-                                subject = "Music",
-                                body = "this is a music homework you have to do a lot of work " +
-                                        "for this because obviously of course you do what more " +
-                                        "would you expect from homework and this is supposed to " +
-                                        "be a really loioooonmg description explaining everything " +
-                                        "you need to do for the task like questyion a question b " +
-                                        "question cquestion d and all of thsose so that it can show " +
-                                        "what happens when the content is long, hopefully it will " +
-                                        "collapse the text and then you can see the whole thing " +
-                                        "when you clickk on me but who knows"
-                            ),
-                            compact = true
-                        )
-                        HomeworkCard(
-                            homework = Homework(
-                                title = "Modal Jazz Improvisation",
-                                complete = false,
-                                teacher = "Mr. Teacher",
-                                subject = "Music",
-                                body = "this is a music homework you have to do a lot of work " +
-                                        "for this because obviously of course you do what more " +
-                                        "would you expect from homework and this is supposed to " +
-                                        "be a really loioooonmg description explaining everything " +
-                                        "you need to do for the task like questyion a question b " +
-                                        "question cquestion d and all of thsose so that it can show " +
-                                        "what happens when the content is long, hopefully it will " +
-                                        "collapse the text and then you can see the whole thing " +
-                                        "when you clickk on me but who knows"
-                            ),
-                            compact = false
-                        )
                     }
                 }
             }

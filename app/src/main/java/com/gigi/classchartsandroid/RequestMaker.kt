@@ -67,6 +67,11 @@ class RequestMaker {
         if (!studentPing()) throw IOException("Ping no work, check internet? Or reauth")
     }
 
+    fun yesno_to_truefalse(yesno: String): Boolean {
+        if (yesno == "yes") return true
+        else return false
+    }
+
     fun studentPing(): Boolean {
         val requestBody = FormBody.Builder()
             .add("include_data", "true")
