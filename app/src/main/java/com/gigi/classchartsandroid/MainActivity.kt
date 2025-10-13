@@ -4,6 +4,7 @@ import android.R
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.StrictMode
+import android.util.Log
 import android.widget.ToggleButton
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,9 +30,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -50,32 +58,33 @@ class MainActivity : ComponentActivity() {
             StrictMode.ThreadPolicy.Builder().permitAll().build()
         )
 
-        val requestMaker = RequestMaker("id", "dob")
-        val homeworksList: MutableList<Homework> = mutableListOf()
-        for (i in requestMaker.getHomeworks()!!) {
-            homeworksList += Homework(
-                title = i.asJsonObject.get("title")!!.asString,
-                complete = requestMaker.yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString),
-                teacher = i.asJsonObject.get("teacher")!!.asString,
-                subject = i.asJsonObject.get("subject")!!.asString,
-                body = i.asJsonObject.get("description")!!.asString
-            )
-        }
+        val requestMaker = RequestMaker("code", "dob")
+
+
+        //val homeworksList: MutableList<Homework> = mutableListOf()
+
         setContent {
+            val homeworksList = remember { mutableStateListOf<Homework>() }
+            var checked by remember { mutableStateOf(true) }
             ClassChartsAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Column(modifier = Modifier.padding(innerPadding)) {
-
-                        LazyColumn(
-                            modifier = Modifier.padding(innerPadding)
-                                .verticalScroll(
-                                    rememberScrollState()
-                                )
-                        ) {
-                            items(homeworksList) { homework ->
-                                HomeworkCard(homework = homework, compact = true)
-                            }
-                        }
+                    Column(modifier = Modifier
+                        .padding(innerPadding)
+                        .verticalScroll(rememberScrollState())) {
+                        ShowCompletedHomeworksToggle(checked)
+                        //repeat(100, ({
+                        //    HomeworkCard(
+                        //        homework = Homework(
+                        //            title = "Modal Jazz Improvisation",
+                        //            complete = true,
+                        //            teacher = "Mr. Teacher",
+                        //            subject = "Music",
+                        //            body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"
+                        //        ),
+                        //        compact = true
+                        //    )
+                        //}))
+                        HomeworkList(requestMaker, homeworksList)
                     }
                 }
             }
@@ -86,8 +95,20 @@ class MainActivity : ComponentActivity() {
 //data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: String, val dueDate: LocalDate? = null)
 
 @Composable
+fun HomeworkList(requestMaker: RequestMaker, homeworksList: MutableList<Homework>) {
+    requestMaker.refreshHomeworkList(homeworksList, )
+
+    for (homework in homeworksList) {
+        HomeworkCard(homework = homework, compact = false)
+    }
+}
+
+
+@Composable
 fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boolean = false) {
-    Card(modifier = modifier.fillMaxWidth().padding(10.dp)) {
+    Card(modifier = modifier
+        .fillMaxWidth()
+        .padding(10.dp)) {
         Column(modifier = Modifier.padding(15.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -134,12 +155,16 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
 
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-fun ShowCompletedHomeworksToggle() {
+fun ShowCompletedHomeworksToggle(checked: Boolean) {
     ClassChartsAndroidTheme {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(15.dp)) {
             Text(text = "Only show incomplete homework")
             Spacer(modifier = Modifier.weight(1f))
-            Switch(true, onCheckedChange = null)
+
+            Switch(checked,
+                onCheckedChange = {
+                    checked = it
+                })
         }
     }
 }
@@ -157,7 +182,7 @@ fun GreetingPreview() {
                         complete = true,
                         teacher = "Mr. Teacher",
                         subject = "Music",
-                        body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"
+                        body = AnnotatedString.fromHtml("this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows")
                     ),
                     compact = true
                 )
@@ -167,7 +192,7 @@ fun GreetingPreview() {
                         complete = false,
                         teacher = "Mr. Teacher",
                         subject = "Music",
-                        body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"
+                        body = AnnotatedString.fromHtml("this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows")
                     ),
                     compact = false
                 )

@@ -1,4 +1,6 @@
 package com.gigi.classchartsandroid
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.fromHtml
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -25,7 +27,7 @@ fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // 
     }
 }
 
-data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: String, val dueDate: LocalDate? = null)
+data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: AnnotatedString, val dueDate: LocalDate? = null)
 
 class RequestMaker {
     private val client = OkHttpClient()
@@ -94,6 +96,18 @@ class RequestMaker {
             catch (e: Error) {
                 return false
             }
+        }
+    }
+
+    fun refreshHomeworkList(homeworksList: MutableList<Homework>, onlyIncomplete: Boolean) {
+        for (i in getHomeworks()!!) {
+            homeworksList += Homework(
+                title = i.asJsonObject.get("title")!!.asString,
+                complete = yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString),
+                teacher = i.asJsonObject.get("teacher")!!.asString,
+                subject = i.asJsonObject.get("subject")!!.asString,
+                body = AnnotatedString.fromHtml(i.asJsonObject.get("description")!!.asString)
+            )
         }
     }
 
