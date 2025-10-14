@@ -27,7 +27,7 @@ fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // 
     }
 }
 
-data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: AnnotatedString, val dueDate: LocalDate? = null)
+data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: AnnotatedString, val dueDate: LocalDate? = null, val id: String? = null)
 
 class RequestMaker {
     private val client = OkHttpClient()
@@ -100,14 +100,19 @@ class RequestMaker {
     }
 
     fun refreshHomeworkList(homeworksList: MutableList<Homework>, onlyIncomplete: Boolean) {
+        homeworksList.clear()
         for (i in getHomeworks()!!) {
-            homeworksList += Homework(
-                title = i.asJsonObject.get("title")!!.asString,
-                complete = yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString),
-                teacher = i.asJsonObject.get("teacher")!!.asString,
-                subject = i.asJsonObject.get("subject")!!.asString,
-                body = AnnotatedString.fromHtml(i.asJsonObject.get("description")!!.asString)
-            )
+            val isComplete = yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
+            if (!onlyIncomplete || !isComplete) {
+                homeworksList += Homework(
+                    title = i.asJsonObject.get("title")!!.asString,
+                    complete = isComplete,
+                    teacher = i.asJsonObject.get("teacher")!!.asString,
+                    subject = i.asJsonObject.get("subject")!!.asString,
+                    body = AnnotatedString.fromHtml(i.asJsonObject.get("description")!!.asString),
+                    id = i.asJsonObject.get("status")!!.asJsonObject.get("id")!!.asString
+                )
+            }
         }
     }
 
