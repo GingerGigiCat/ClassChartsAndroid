@@ -22,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 
@@ -160,6 +162,39 @@ fun ShowCompletedHomeworksToggle(checked: Boolean, onToggle: (Boolean) -> Unit) 
 
             Switch(checked,
                 onCheckedChange = onToggle)
+        }
+    }
+}
+
+@Preview(uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun HomeworkContentPreview() {
+    HomeworkContent(Homework(
+        title = "Modal Jazz Improvisation",
+        complete = true,
+        teacher = "Mr. Teacher",
+        subject = "Music",
+        body = AnnotatedString.fromHtml("this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows")
+    ))
+}
+
+@Composable
+fun HomeworkContent(homework: Homework) {
+    ClassChartsAndroidTheme {
+        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+            Column(modifier = Modifier.padding(innerPadding).padding(15.dp)) {
+                Text(
+                    text = homework.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "${homework.subject} - ${homework.teacher}",
+                )
+            }
         }
     }
 }
