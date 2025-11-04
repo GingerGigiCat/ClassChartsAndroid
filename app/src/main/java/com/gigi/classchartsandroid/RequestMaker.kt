@@ -1,10 +1,18 @@
 package com.gigi.classchartsandroid
 import android.util.Log
+import android.view.textclassifier.TextLinks
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.text.style.TextDecoration
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -28,7 +36,16 @@ fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // 
     }
 }
 
-data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: AnnotatedString, val issueDate: LocalDate? = null, val dueDate: LocalDate? = null, val id: String? = null)
+
+data class Homework(val title: String,
+                    val complete: Boolean,
+                    val teacher: String,
+                    val subject: String,
+                    val body: AnnotatedString,
+                    val rawBody: String? = null,
+                    val issueDate: LocalDate? = null,
+                    val dueDate: LocalDate? = null,
+                    val id: String? = null)
 
 class RequestMaker {
     private val client = OkHttpClient()
@@ -100,7 +117,8 @@ class RequestMaker {
         }
     }
 
-    fun refreshHomeworkList(homeworksList: MutableList<Homework>, onlyIncomplete: Boolean) {
+
+    fun refreshHomeworkList(homeworksList: MutableList<Homework>, onlyIncomplete: Boolean, linkStyle: TextLinkStyles) {
         homeworksList.clear()
         for (i in getHomeworks()!!) {
             val isComplete = yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
@@ -110,7 +128,10 @@ class RequestMaker {
                     complete = isComplete,
                     teacher = i.asJsonObject.get("teacher")!!.asString,
                     subject = i.asJsonObject.get("subject")!!.asString,
-                    body = AnnotatedString.fromHtml(i.asJsonObject.get("description")!!.asString),
+                    body = AnnotatedString.fromHtml(i.asJsonObject.get("description")!!.asString, linkStyles = linkStyle),
+                    rawBody = i.asJsonObject.get("description")!!.asString,
+                    issueDate = LocalDate.parse(i.asJsonObject.get("issue_date")!!.asString),
+                    dueDate = LocalDate.parse(i.asJsonObject.get("due_date")!!.asString),
                     id = i.asJsonObject.get("status")!!.asJsonObject.get("id")!!.asString
                 )
             }
