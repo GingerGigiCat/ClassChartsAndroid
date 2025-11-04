@@ -56,17 +56,15 @@ class MainActivity : ComponentActivity() {
     @Serializable
     object HomeworkListObject
     @Serializable
-    data class HomeworkContentObject(val homework: NavHomework)
+    data class HomeworkContentObject(val title: String,
+                                     val complete: Boolean,
+                                     val teacher: String,
+                                     val subject: String,
+                                     val body: String,
+                                     val issueDate: String = "",
+                                     val dueDate: String = "",
+                                     val id: String = "")
 
-    @Serializable
-    data class NavHomework(val title: String,
-                           val complete: Boolean,
-                           val teacher: String,
-                           val subject: String,
-                           val body: String,
-                           val issueDate: String = "",
-                           val dueDate: String = "",
-                           val id: String? = null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,65 +91,52 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             NavHost(navController, startDestination = HomeworkListObject) {
                 composable<HomeworkListObject> {
-                    HomeworkList(requestMaker = requestMaker, homeworksList = homeworksList, onlyIncomplete = true)
+                    //HomeworkList(requestMaker = requestMaker, homeworksList = homeworksList, onlyIncomplete = true)
+                    ClassChartsAndroidTheme {
+                        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                            Column(modifier = Modifier
+                                .padding(innerPadding)
+                            ) {
+                                ShowCompletedHomeworksToggle(showCompletedHomeworksChecked, {showCompletedHomeworksChecked = it})
+                                LazyColumn {
+                                    requestMaker.refreshHomeworkList(homeworksList, showCompletedHomeworksChecked, linkStyle)
+                                    items(homeworksList, key = { it.id!! }) { homework ->
+                                        HomeworkCard(homework = homework, compact = false, navigate = {
+                                            navController.navigate(
+                                                HomeworkContentObject(
+                                                    title = homework.title,
+                                                    complete = homework.complete,
+                                                    teacher = homework.teacher,
+                                                    subject = homework.subject,
+                                                    body = homework.rawBody!!,
+                                                    issueDate = homework.issueDate.toString(),
+                                                    dueDate = homework.dueDate.toString(),
+                                                    id = homework.id!!
+                                                )) })
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 composable<HomeworkContentObject> { backStackEntry ->
                     val homeworkContentObj: HomeworkContentObject = backStackEntry.toRoute()
                     val homework: Homework = Homework(
-                        title = TODO(),
-                        complete = TODO(),
-                        teacher = TODO(),
-                        subject = TODO(),
-                        body = TODO(),
-                        rawBody = homeworkContentObj.homework.body,
-                        issueDate = TODO(),
-                        dueDate = TODO(),
-                        id = TODO()
+                        title = homeworkContentObj.title,
+                        complete = homeworkContentObj.complete,
+                        teacher = homeworkContentObj.teacher,
+                        subject = homeworkContentObj.subject,
+                        body = AnnotatedString.fromHtml(homeworkContentObj.body, linkStyles = linkStyle),
+                        rawBody = homeworkContentObj.body,
+                        issueDate = LocalDate.parse(homeworkContentObj.issueDate),
+                        dueDate = LocalDate.parse(homeworkContentObj.dueDate),
+                        id = homeworkContentObj.id
                     )
-                    HomeworkContent(homeworkContentObj.homework)
+                    HomeworkContent(homework)
                 }
             }
 
-            ClassChartsAndroidTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Column(modifier = Modifier
-                        .padding(innerPadding)
-                        ) {
-                        ShowCompletedHomeworksToggle(showCompletedHomeworksChecked, {showCompletedHomeworksChecked = it})
-                        LazyColumn {
-                            requestMaker.refreshHomeworkList(homeworksList, showCompletedHomeworksChecked, linkStyle)
-                            items(homeworksList, key = { it.id!! }) { homework ->
-                                HomeworkCard(homework = homework, compact = false, navigate = {
-                                    val navHomework: NavHomework = NavHomework(
-                                        title = homework.title,
-                                        complete = homework.complete,
-                                        teacher = homework.teacher,
-                                        subject = homework.subject,
-                                        body = homework.rawBody!!,
-                                        issueDate = homework.issueDate.toString(),
-                                        dueDate = homework.dueDate.toString(),
-                                        id = homework.id
-                                    )
-                                    navController.navigate(
-                                    HomeworkContentObject(navHomework)) })
-                            }
-                        }
-                        //repeat(100, ({
-                        //    HomeworkCard(
-                        //        homework = Homework(
-                        //            title = "Modal Jazz Improvisation",
-                        //            complete = true,
-                        //            teacher = "Mr. Teacher",
-                        //            subject = "Music",
-                        //            body = "this is a music homework you have to do a lot of work for this because obviously of course you do what more would you expect from homework and this is supposed to be a really loioooonmg description explaining everything you need to do for the task like questyion a question b question cquestion d and all of thsose so that it can show what happens when the content is long, hopefully it will collapse the text and then you can see the whole thing when you clickk on me but who knows"
-                        //        ),
-                        //        compact = true
-                        //    )
-                        //}))
-                        //HomeworkList(requestMaker, homeworksList, showCompletedHomeworksChecked)
-                    }
-                }
-            }
+
         }
     }
 }

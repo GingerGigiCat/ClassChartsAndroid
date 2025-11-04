@@ -120,20 +120,23 @@ class RequestMaker {
 
     fun refreshHomeworkList(homeworksList: MutableList<Homework>, onlyIncomplete: Boolean, linkStyle: TextLinkStyles) {
         homeworksList.clear()
-        for (i in getHomeworks()!!) {
-            val isComplete = yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
-            if (!onlyIncomplete || !isComplete) {
-                homeworksList += Homework(
-                    title = i.asJsonObject.get("title")!!.asString,
-                    complete = isComplete,
-                    teacher = i.asJsonObject.get("teacher")!!.asString,
-                    subject = i.asJsonObject.get("subject")!!.asString,
-                    body = AnnotatedString.fromHtml(i.asJsonObject.get("description")!!.asString, linkStyles = linkStyle),
-                    rawBody = i.asJsonObject.get("description")!!.asString,
-                    issueDate = LocalDate.parse(i.asJsonObject.get("issue_date")!!.asString),
-                    dueDate = LocalDate.parse(i.asJsonObject.get("due_date")!!.asString),
-                    id = i.asJsonObject.get("status")!!.asJsonObject.get("id")!!.asString
-                )
+        val homeworks = getHomeworks()
+        if (homeworks != null) {
+            for (i in homeworks) {
+                val isComplete = yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
+                if (!onlyIncomplete || !isComplete) {
+                    homeworksList += Homework(
+                        title = i.asJsonObject.get("title")!!.asString,
+                        complete = isComplete,
+                        teacher = i.asJsonObject.get("teacher")!!.asString,
+                        subject = i.asJsonObject.get("subject")!!.asString,
+                        body = AnnotatedString.fromHtml(i.asJsonObject.get("description")!!.asString, linkStyles = linkStyle),
+                        rawBody = i.asJsonObject.get("description")!!.asString,
+                        issueDate = LocalDate.parse(i.asJsonObject.get("issue_date")!!.asString),
+                        dueDate = LocalDate.parse(i.asJsonObject.get("due_date")!!.asString),
+                        id = i.asJsonObject.get("status")!!.asJsonObject.get("id")!!.asString
+                    )
+                }
             }
         }
     }
@@ -164,6 +167,7 @@ class RequestMaker {
                 return jsonResponse.getAsJsonArray("data")
             }
             catch (e: Error) {
+                Log.e("uh oh in getHomeworks", e.toString())
                 return null
             }
         }
