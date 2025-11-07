@@ -41,6 +41,7 @@ data class Homework(val title: String,
                     val complete: Boolean,
                     val teacher: String,
                     val subject: String,
+                    val completionTime: String = "no time",
                     val body: AnnotatedString,
                     val rawBody: String? = null,
                     val issueDate: LocalDate? = null,
@@ -73,7 +74,7 @@ class RequestMaker {
             .build()
 
 
-        client.newCall(request).execute().use { response -> // TODO: Error here
+        client.newCall(request).execute().use { response -> // was an Error here
             if (!response.isSuccessful) print(response)//throw _root_ide_package_.okio.IOException("Unexpected code $response")
             studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             sessionId = studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
@@ -130,6 +131,7 @@ class RequestMaker {
                         complete = isComplete,
                         teacher = i.asJsonObject.get("teacher")!!.asString,
                         subject = i.asJsonObject.get("subject")!!.asString,
+                        completionTime = "${i.asJsonObject.get("completion_time_value")!!.asString} ${i.asJsonObject.get("completion_time_unit")!!.asString}",
                         body = AnnotatedString.fromHtml(i.asJsonObject.get("description")!!.asString, linkStyles = linkStyle),
                         rawBody = i.asJsonObject.get("description")!!.asString,
                         issueDate = LocalDate.parse(i.asJsonObject.get("issue_date")!!.asString),

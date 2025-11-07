@@ -47,7 +47,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -56,14 +55,17 @@ class MainActivity : ComponentActivity() {
     @Serializable
     object HomeworkListObject
     @Serializable
-    data class HomeworkContentObject(val title: String,
-                                     val complete: Boolean,
-                                     val teacher: String,
-                                     val subject: String,
-                                     val body: String,
-                                     val issueDate: String = "",
-                                     val dueDate: String = "",
-                                     val id: String = "")
+    data class HomeworkContentObject(
+        val title: String,
+        val complete: Boolean,
+        val teacher: String,
+        val subject: String,
+        val body: String,
+        val issueDate: String = "",
+        val dueDate: String = "",
+        val id: String = "",
+        val completionTime: String
+    )
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,7 +102,12 @@ class MainActivity : ComponentActivity() {
                                 ShowCompletedHomeworksToggle(showCompletedHomeworksChecked, {showCompletedHomeworksChecked = it})
                                 LazyColumn {
                                     requestMaker.refreshHomeworkList(homeworksList, showCompletedHomeworksChecked, linkStyle)
+                                    var lastDueDate: String = ""
                                     items(homeworksList, key = { it.id!! }) { homework ->
+                                        if (homework.dueDate.toString() != lastDueDate) {
+                                            lastDueDate = homework.dueDate.toString()
+                                            DateDivider(homework.dueDate!!)
+                                        }
                                         HomeworkCard(homework = homework, compact = false, navigate = {
                                             navController.navigate(
                                                 HomeworkContentObject(
@@ -108,6 +115,7 @@ class MainActivity : ComponentActivity() {
                                                     complete = homework.complete,
                                                     teacher = homework.teacher,
                                                     subject = homework.subject,
+                                                    completionTime = homework.completionTime,
                                                     body = homework.rawBody!!,
                                                     issueDate = homework.issueDate.toString(),
                                                     dueDate = homework.dueDate.toString(),
@@ -126,6 +134,7 @@ class MainActivity : ComponentActivity() {
                         complete = homeworkContentObj.complete,
                         teacher = homeworkContentObj.teacher,
                         subject = homeworkContentObj.subject,
+                        completionTime = homeworkContentObj.completionTime,
                         body = AnnotatedString.fromHtml(homeworkContentObj.body, linkStyles = linkStyle),
                         rawBody = homeworkContentObj.body,
                         issueDate = LocalDate.parse(homeworkContentObj.issueDate),
@@ -156,6 +165,19 @@ fun HomeworkList(requestMaker: RequestMaker, homeworksList: MutableList<Homework
 
     for (homework in homeworksList) {
         HomeworkCard(homework = homework, compact = false)
+    }
+}
+
+@Composable
+fun DateDivider(date: LocalDate) {
+    Row(modifier = Modifier.padding(horizontal = 20.dp, vertical = 5.dp)) {
+        val today = LocalDate.now()
+        var dateText = date.format(DateTimeFormatter.ofPattern("EEEE d MMMM"))
+        if (today.minusDays(1) == date) { dateText = "Yesterday" }
+        else if (today == date) { dateText = "Today" }
+        else if (today.plusDays(1) == date) { dateText = "Tomorrow" }
+        Text(dateText, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
+
     }
 }
 
@@ -227,13 +249,12 @@ fun ShowCompletedHomeworksToggle(checked: Boolean, onToggle: (Boolean) -> Unit) 
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun HomeworkContentPreview() {
-
-
     HomeworkContent(Homework(
         title = "Modal Jazz Improvisation",
         complete = true,
         teacher = "Mr. Teacher",
         subject = "Music",
+        completionTime = "5 hours",
         body = AnnotatedString.fromHtml("\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n", linkStyles = TextLinkStyles(
                 SpanStyle(
                     textDecoration = TextDecoration.Underline,
@@ -249,7 +270,10 @@ fun HomeworkContentPreview() {
 fun HomeworkContent(homework: Homework) {
     ClassChartsAndroidTheme {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            Column(modifier = Modifier.padding(innerPadding).verticalScroll(rememberScrollState()).padding(15.dp)) {
+            Column(modifier = Modifier
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(15.dp)) {
                 Row() {
                     Column {
                         Text(
@@ -261,7 +285,7 @@ fun HomeworkContent(homework: Homework) {
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "${homework.subject} - ${homework.teacher}",
+                            text = "${homework.subject} - ${homework.teacher} - ${homework.completionTime}",
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -274,8 +298,8 @@ fun HomeworkContent(homework: Homework) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Row() {
                     Card(modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        .fillMaxWidth()
+                        .weight(1f),
 
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -284,7 +308,8 @@ fun HomeworkContent(homework: Homework) {
                         ) {
                         Text(
                             text = "Set ${homework.issueDate?.format(DateTimeFormatter.ofPattern("EEE dd MMM"))}", // eg. Tue 28 Apr
-                            modifier = Modifier.padding(6.dp)
+                            modifier = Modifier
+                                .padding(6.dp)
                                 .align(Alignment.CenterHorizontally),
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
@@ -302,7 +327,8 @@ fun HomeworkContent(homework: Homework) {
                     ) {
                         Text(
                             text = "Due ${homework.dueDate?.format(DateTimeFormatter.ofPattern("EEE dd MMM"))}",
-                            modifier = Modifier.padding(6.dp)
+                            modifier = Modifier
+                                .padding(6.dp)
                                 .align(Alignment.CenterHorizontally),
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
@@ -336,6 +362,7 @@ fun GreetingPreview() {
                     ),
                     compact = true
                 )
+                DateDivider(LocalDate.parse("2025-05-04"))
                 HomeworkCard(
                     homework = Homework(
                         title = "Modal Jazz Improvisation",
