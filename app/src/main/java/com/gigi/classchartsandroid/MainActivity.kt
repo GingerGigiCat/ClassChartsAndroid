@@ -1,11 +1,13 @@
 package com.gigi.classchartsandroid
 
 import android.content.res.Configuration
+import android.content.res.Resources
 import android.os.Bundle
 import android.os.StrictMode
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,9 +19,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -34,10 +38,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -47,9 +54,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlin.math.max
 
 class MainActivity : ComponentActivity() {
     @Serializable
@@ -64,7 +74,8 @@ class MainActivity : ComponentActivity() {
         val issueDate: String = "",
         val dueDate: String = "",
         val id: String = "",
-        val completionTime: String
+        val completionTime: String,
+        val attachments: String
     )
 
 
@@ -95,17 +106,18 @@ class MainActivity : ComponentActivity() {
                 composable<HomeworkListObject> {
                     //HomeworkList(requestMaker = requestMaker, homeworksList = homeworksList, onlyIncomplete = true)
                     ClassChartsAndroidTheme {
-                        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) { innerPadding ->
                             Column(modifier = Modifier
                                 .padding(innerPadding)
                             ) {
                                 ShowCompletedHomeworksToggle(showCompletedHomeworksChecked, {showCompletedHomeworksChecked = it})
                                 LazyColumn {
                                     requestMaker.refreshHomeworkList(homeworksList, showCompletedHomeworksChecked, linkStyle)
-                                    var lastDueDate: String = ""
-                                    items(homeworksList, key = { it.id!! }) { homework ->
-                                        if (homework.dueDate.toString() != lastDueDate) {
-                                            lastDueDate = homework.dueDate.toString()
+                                    itemsIndexed(
+                                        items = homeworksList,
+                                        key = {index, homework -> homework.id!! }
+                                    ) { index, homework ->
+                                        if (homework.dueDate.toString() != homeworksList[max(index-1, 0)].dueDate.toString() || index == 0) {
                                             DateDivider(homework.dueDate!!)
                                         }
                                         HomeworkCard(homework = homework, compact = false, navigate = {
@@ -119,7 +131,8 @@ class MainActivity : ComponentActivity() {
                                                     body = homework.rawBody!!,
                                                     issueDate = homework.issueDate.toString(),
                                                     dueDate = homework.dueDate.toString(),
-                                                    id = homework.id!!
+                                                    id = homework.id!!,
+                                                    attachments = Gson().toJson(homework.attachments)
                                                 )) })
                                     }
                                 }
@@ -139,7 +152,9 @@ class MainActivity : ComponentActivity() {
                         rawBody = homeworkContentObj.body,
                         issueDate = LocalDate.parse(homeworkContentObj.issueDate),
                         dueDate = LocalDate.parse(homeworkContentObj.dueDate),
-                        id = homeworkContentObj.id
+                        id = homeworkContentObj.id,
+                        attachments = Gson().fromJson(homeworkContentObj.attachments,
+                            object: TypeToken<MutableList<Attachment>>() {}.type)
                     )
                     HomeworkContent(homework)
                 }
@@ -204,7 +219,7 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                     )
                     if (compact) {
                         Text(
-                            text = homework.subject + " - " + homework.teacher,
+                            text = homework.subject + " - " + homework.teacher + " - " + homework.completionTime,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -215,7 +230,7 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
             if (!compact) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = homework.subject + " - " + homework.teacher,
+                    text = homework.subject + " - " + homework.teacher + " - " + homework.completionTime,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -246,6 +261,52 @@ fun ShowCompletedHomeworksToggle(checked: Boolean, onToggle: (Boolean) -> Unit) 
     }
 }
 
+
+@Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun HomeworkAttachmentCardPreview() {
+    ClassChartsAndroidTheme {
+        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+            Row(Modifier.padding(innerPadding).padding(10.dp)) {
+                HomeworkAttachmentCard(
+                    Attachment(
+                        "verycoolfile.pdf",
+                        "https://example.com/verycoolfile.pdf",
+                        true
+                    )
+                )
+                HomeworkAttachmentCard(
+                    Attachment(
+                        "https://example.com/verycoollink",
+                        "https://example.com/verycoollink",
+                        false
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeworkAttachmentCard(attachment: Attachment, modifier:Modifier = Modifier) {
+    Card(Modifier.padding(10.dp).width(120.dp).height(100.dp)) {
+        Column() {
+            Card(
+                Modifier.fillMaxWidth().weight(1f).padding(5.dp), colors = CardColors(
+                    MaterialTheme.colorScheme.surfaceContainer,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    MaterialTheme.colorScheme.errorContainer,
+                    MaterialTheme.colorScheme.onErrorContainer
+                )
+            ) {
+                Image(painterResource(R.drawable.link), "link",
+                    modifier = Modifier.padding(10.dp).align(Alignment.CenterHorizontally))
+            }
+            Text("hello", modifier = Modifier.padding(start = 10.dp, top = 0.dp, bottom = 5.dp))
+        }
+    }
+}
+
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun HomeworkContentPreview() {
@@ -269,7 +330,7 @@ fun HomeworkContentPreview() {
 @Composable
 fun HomeworkContent(homework: Homework) {
     ClassChartsAndroidTheme {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) { innerPadding ->
             Column(modifier = Modifier
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
@@ -338,6 +399,12 @@ fun HomeworkContent(homework: Homework) {
                 Spacer(Modifier.height(10.dp))
                 Text(
                     text = homework.body
+                )
+                Spacer(Modifier.height(15.dp))
+                Text(
+                    text = "Attachments",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
         }

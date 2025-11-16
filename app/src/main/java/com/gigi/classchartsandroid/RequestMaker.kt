@@ -36,17 +36,26 @@ fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // 
     }
 }
 
+@Serializable
+data class Attachment(
+    val name: String,
+    val link: String,
+    val isFile: Boolean
+    )
 
-data class Homework(val title: String,
-                    val complete: Boolean,
-                    val teacher: String,
-                    val subject: String,
-                    val completionTime: String = "no time",
-                    val body: AnnotatedString,
-                    val rawBody: String? = null,
-                    val issueDate: LocalDate? = null,
-                    val dueDate: LocalDate? = null,
-                    val id: String? = null)
+data class Homework(
+    val title: String,
+    val complete: Boolean,
+    val teacher: String,
+    val subject: String,
+    val completionTime: String = "no time",
+    val body: AnnotatedString,
+    val rawBody: String? = null,
+    val issueDate: LocalDate? = null,
+    val dueDate: LocalDate? = null,
+    val id: String? = null,
+    val attachments: MutableList<Attachment>? = null
+    )
 
 class RequestMaker {
     private val client = OkHttpClient()
@@ -126,6 +135,24 @@ class RequestMaker {
             for (i in homeworks) {
                 val isComplete = yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
                 if (!onlyIncomplete || !isComplete) {
+                    var attachments: MutableList<Attachment> = mutableListOf()
+                    
+                    for (i in i.asJsonObject.getAsJsonArray("validated_links")) {
+                        attachments += Attachment(
+                            name = i.asJsonObject.get("link")!!.asString,
+                            link = i.asJsonObject.get("link")!!.asString,
+                            isFile = false
+                        )
+                    }
+
+                    for (i in i.asJsonObject.getAsJsonArray("validated_attachments")) {
+                        attachments += Attachment(
+                            name = i.asJsonObject.get("filename")!!.asString,
+                            link = i.asJsonObject.get("file")!!.asString,
+                            isFile = true
+                        )
+                    }
+
                     homeworksList += Homework(
                         title = i.asJsonObject.get("title")!!.asString,
                         complete = isComplete,
@@ -165,6 +192,7 @@ class RequestMaker {
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            Log.d("HomeworkData", jsonResponse.toString())
             try {
                 return jsonResponse.getAsJsonArray("data")
             }
