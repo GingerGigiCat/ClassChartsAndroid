@@ -1,15 +1,19 @@
 package com.gigi.classchartsandroid
 
+import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.net.Uri
 import android.os.Bundle
 import android.os.StrictMode
+import android.webkit.MimeTypeMap
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,6 +42,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.PlaceholderVerticalAlign
@@ -47,8 +53,11 @@ import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat.startActivity
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -60,6 +69,14 @@ import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
+
+// Features to add:
+// Tickable homeworks
+// Timetable
+// Login page
+// Add notes to homeworks
+// Half tick homeworks
+
 
 class MainActivity : ComponentActivity() {
     @Serializable
@@ -267,7 +284,7 @@ fun ShowCompletedHomeworksToggle(checked: Boolean, onToggle: (Boolean) -> Unit) 
 fun HomeworkAttachmentCardPreview() {
     ClassChartsAndroidTheme {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            Row(Modifier.padding(innerPadding).padding(10.dp)) {
+            Column(Modifier.padding(innerPadding).padding(10.dp)) {
                 HomeworkAttachmentCard(
                     Attachment(
                         "verycoolfile.pdf",
@@ -289,22 +306,81 @@ fun HomeworkAttachmentCardPreview() {
 
 @Composable
 fun HomeworkAttachmentCard(attachment: Attachment, modifier:Modifier = Modifier) {
-    Card(Modifier.padding(10.dp).width(120.dp).height(100.dp)) {
-        Column() {
-            Card(
-                Modifier.fillMaxWidth().weight(1f).padding(5.dp), colors = CardColors(
-                    MaterialTheme.colorScheme.surfaceContainer,
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                    MaterialTheme.colorScheme.errorContainer,
-                    MaterialTheme.colorScheme.onErrorContainer
-                )
-            ) {
-                Image(painterResource(R.drawable.link), "link",
-                    modifier = Modifier.padding(10.dp).align(Alignment.CenterHorizontally))
+    var attachmentExpanded by remember { mutableStateOf(false) }
+    var outerCardModifier: Modifier = Modifier
+    val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+
+    val openLink = {
+        if (!attachmentExpanded) {
+            attachmentExpanded = true
+        } else {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(Uri.parse(attachment.link), attachment.link.getMimeType())
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
-            Text("hello", modifier = Modifier.padding(start = 10.dp, top = 0.dp, bottom = 5.dp))
+            context.startActivity(intent)
         }
     }
+
+    if (attachmentExpanded) {
+        outerCardModifier = Modifier.padding(10.dp).fillMaxWidth().height(IntrinsicSize.Min)
+    }
+    else {
+        outerCardModifier = Modifier.padding(10.dp).fillMaxWidth().height(80.dp)
+    }
+    Card(outerCardModifier.clickable(onClick = openLink)) {
+            Row() {
+                Card(
+                    Modifier.width(80.dp).padding(5.dp)
+                        .clickable(onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(Uri.parse(attachment.link), attachment.link.getMimeType())
+                                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            context.startActivity(intent)
+                        }),
+                    colors = CardColors(
+                        MaterialTheme.colorScheme.surfaceContainer,
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                        MaterialTheme.colorScheme.errorContainer,
+                        MaterialTheme.colorScheme.onErrorContainer
+                    ),
+
+                    ) {
+                    var cardIcon: Int
+                    if (attachment.isFile) {
+                        cardIcon = R.drawable.file
+                    } else {
+                        cardIcon = R.drawable.link4
+                    }
+                    Image(
+                        painterResource(cardIcon), "link",
+                        modifier = Modifier.padding(10.dp).align(Alignment.CenterHorizontally)
+                    )
+                }
+                Text(
+                    attachment.name,
+                    modifier = Modifier.padding(
+                        start = 5.dp,
+                        top = 10.dp,
+                        bottom = 5.dp,
+                        end = 10.dp
+                    ),
+                    onTextLayout = { textLayoutResult ->
+                        if (!textLayoutResult.hasVisualOverflow) {
+                            attachmentExpanded = true
+                        }
+                    })
+            }
+        }
+
+}
+
+private fun String.getMimeType(): String? {
+    return MimeTypeMap.getFileExtensionFromUrl(toString())?.run {
+        MimeTypeMap.getSingleton().getMimeTypeFromExtension(lowercase())
+    }?: "text/html"
 }
 
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
@@ -400,12 +476,20 @@ fun HomeworkContent(homework: Homework) {
                 Text(
                     text = homework.body
                 )
-                Spacer(Modifier.height(15.dp))
-                Text(
-                    text = "Attachments",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleMedium
-                )
+                if (homework.attachments != null) {
+                    if (homework.attachments.isNotEmpty()) {
+                        Spacer(Modifier.height(15.dp))
+                        Text(
+                            text = "Attachments",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        for (i in homework.attachments) {
+                            HomeworkAttachmentCard(i)
+                        }
+                    }
+                }
             }
         }
     }

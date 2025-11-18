@@ -163,7 +163,8 @@ class RequestMaker {
                         rawBody = i.asJsonObject.get("description")!!.asString,
                         issueDate = LocalDate.parse(i.asJsonObject.get("issue_date")!!.asString),
                         dueDate = LocalDate.parse(i.asJsonObject.get("due_date")!!.asString),
-                        id = i.asJsonObject.get("status")!!.asJsonObject.get("id")!!.asString
+                        id = i.asJsonObject.get("status")!!.asJsonObject.get("id")!!.asString,
+                        attachments = attachments
                     )
                 }
             }
