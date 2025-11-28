@@ -171,8 +171,8 @@ class RequestMaker {
         }
     }
 
-    fun getHomeworks(startDate: LocalDate = LocalDate.now().minusDays(28),
-                     endDate: LocalDate = LocalDate.now().plusDays(28)): JsonArray? {
+    fun getHomeworks(startDate: LocalDate = LocalDate.now().minusDays(45),
+                     endDate: LocalDate = LocalDate.now().plusDays(366)): JsonArray? {
         // To get current date: LocalDate.now()
 
         val requestBody = FormBody.Builder()
@@ -204,4 +204,22 @@ class RequestMaker {
         }
     }
 
+    fun tickHomework(id: String) {
+        val requestBody = FormBody.Builder()
+            .build()
+
+        val url = "https://www.classcharts.com/apiv2student/homeworkticked/$id".toHttpUrlOrNull()!!
+            .newBuilder()
+            .addQueryParameter("studentId", studentId)
+            .build()
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Basic $sessionId")
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
+        }
+    }
 }
