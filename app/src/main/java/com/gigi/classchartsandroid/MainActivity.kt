@@ -1,5 +1,6 @@
 package com.gigi.classchartsandroid
 
+import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
@@ -68,6 +69,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -87,6 +91,7 @@ import kotlin.math.max
 // Add notes to homeworks
 // Half tick homeworks
 
+val Context.appDataStore: DataStore<Preferences> by preferencesDataStore("settings")
 
 class MainActivity : ComponentActivity() {
     @Serializable
@@ -105,9 +110,14 @@ class MainActivity : ComponentActivity() {
         val attachments: String
     )
 
+    companion object {
+        lateinit var instance: MainActivity
+            private set
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instance = this
         enableEdgeToEdge()
 
         StrictMode.setThreadPolicy(

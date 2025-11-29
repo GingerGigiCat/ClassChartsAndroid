@@ -1,6 +1,9 @@
 package com.gigi.classchartsandroid
+import android.app.Application
+import android.content.Context
 import android.util.Log
 import android.view.textclassifier.TextLinks
+import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.AnnotatedString
@@ -8,9 +11,18 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.datastore.core.DataStore
+import androidx.datastore.dataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import okhttp3.FormBody
@@ -57,19 +69,52 @@ data class Homework(
     val attachments: MutableList<Attachment>? = null
     )
 
+
 class RequestMaker {
     private val client = OkHttpClient()
     val gson = Gson()
     var sessionId: String? = null
     var studentId: String? = null
+    var studentDob: String? = null
     var studentLoginResponse: JsonObject? = null
     var name: String = ""
     var f_name: String = ""
     var l_name: String = ""
 
-    constructor()
+    val STUDENT_ID = stringPreferencesKey("student_id")
+    val STUDENT_DOB = stringPreferencesKey("student_dob")
 
-    constructor(id: String, dob: String) {
+    fun idFlow(): Flow<String> = MainActivity.instance.appDataStore.data.map { preferences ->
+        preferences[STUDENT_ID] ?: ""
+    }
+
+    fun dobFlow(): Flow<String> = MainActivity.instance.appDataStore.data.map { preferences ->
+        preferences[STUDENT_DOB] ?: ""
+    }
+
+    suspend fun writeId() {
+        MainActivity.instance.appDataStore.updateData {
+            it.toMutablePreferences().also { preferences ->
+                preferences[STUDENT_ID] = studentId?: ""
+            }
+        }
+    }
+
+    suspend fun writeDob() {
+        MainActivity.instance.appDataStore.updateData {
+            it.toMutablePreferences().also { preferences ->
+                preferences[STUDENT_DOB] = studentDob?: ""
+            }
+        }
+    }
+
+    constructor() {
+    }
+
+    constructor(id: String?, dob: String?) {
+        var id: String = id?: idFlow().toString()
+        var dob: String = dob?: dobFlow().toString()
+
         val requestBody = FormBody.Builder()
             .add("code", id)
             .add("remember", "true")
@@ -88,6 +133,11 @@ class RequestMaker {
             studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             sessionId = studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
             studentId = id
+            studentDob = dob
+            runBlocking {
+                writeId()
+                writeDob()
+            }
         }
     }
 
