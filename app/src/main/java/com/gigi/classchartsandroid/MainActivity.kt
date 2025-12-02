@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.os.StrictMode
+import android.util.Log
 import android.webkit.MimeTypeMap
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fitInside
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,6 +50,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -79,6 +80,7 @@ import androidx.navigation.toRoute
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -94,8 +96,10 @@ import kotlin.math.max
 val Context.appDataStore: DataStore<Preferences> by preferencesDataStore("settings")
 
 class MainActivity : ComponentActivity() {
+    open class ScreenObject
+
     @Serializable
-    object HomeworkListObject
+    object HomeworkListObject : ScreenObject()
     @Serializable
     data class HomeworkContentObject(
         val title: String,
@@ -108,7 +112,10 @@ class MainActivity : ComponentActivity() {
         val id: String = "",
         val completionTime: String,
         val attachments: String
-    )
+    ) : ScreenObject()
+
+    @Serializable
+    object LoginScreenObject : ScreenObject()
 
     companion object {
         lateinit var instance: MainActivity
@@ -124,11 +131,14 @@ class MainActivity : ComponentActivity() {
             StrictMode.ThreadPolicy.Builder().permitAll().build()
         )
 
-        val requestMaker = RequestMaker("id", "dob")
+        val requestMaker = RequestMaker()
 
         //val homeworksList: MutableList<Homework> = mutableListOf()
 
         setContent {
+            var studentId by remember { mutableStateOf(requestMaker.studentId) }
+            var studentDob by remember { mutableStateOf(requestMaker.studentDob) }
+            var loginResponse by remember { mutableStateOf(runBlocking { requestMaker.login(studentId, studentDob) }) }
             val homeworksList = remember { mutableStateListOf<Homework>() }
             var showCompletedHomeworksChecked by remember { mutableStateOf(true) }
             val linkStyle = TextLinkStyles(
@@ -139,7 +149,17 @@ class MainActivity : ComponentActivity() {
             )
 
             val navController = rememberNavController()
-            NavHost(navController, startDestination = HomeworkListObject) {
+            var startDestination: ScreenObject = LoginScreenObject
+            if (loginResponse is ErrorInvalidLogin) {
+                startDestination = LoginScreenObject
+            } // TODO: add handling for waiting and network error
+            if (loginResponse is Success) {
+                startDestination = HomeworkListObject
+            }
+            Log.d("LoginResponse", loginResponse.toString()) // TODO: figure out why this is always error
+
+
+            NavHost(navController, startDestination = startDestination) {
                 composable<HomeworkListObject> {
                     //HomeworkList(requestMaker = requestMaker, homeworksList = homeworksList, onlyIncomplete = true)
                     ClassChartsAndroidTheme {
@@ -203,6 +223,15 @@ class MainActivity : ComponentActivity() {
                             object: TypeToken<MutableList<Attachment>>() {}.type)
                     )
                     HomeworkContent(homework)
+                }
+                composable<LoginScreenObject> { backStackEntry ->
+                    ClassChartsAndroidTheme {
+                        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) { innerPadding ->
+                            loginResponse = LogInScreen(Modifier.padding(innerPadding), requestMaker, {navController.navigate(
+                                MainActivity.HomeworkListObject
+                            )})
+                        }
+                    }
                 }
             }
         }
@@ -321,7 +350,7 @@ fun ShowCompletedHomeworksToggle(checked: Boolean, onToggle: (Boolean) -> Unit) 
 fun LogInScreenPreview() {
     ClassChartsAndroidTheme {
         Scaffold(Modifier.fillMaxSize()) { innerPadding ->
-            LogInScreen(Modifier.padding(innerPadding))
+            LogInScreen(Modifier.padding(innerPadding), RequestMaker())
         }
     }
 }
@@ -329,9 +358,14 @@ fun LogInScreenPreview() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LogInScreen(modifier:Modifier = Modifier) {
+fun LogInScreen(modifier:Modifier = Modifier, requestMaker: RequestMaker, navigate: () -> Unit = {}): ErrorType {
     var dateState = rememberDatePickerState(initialDisplayMode = DisplayMode.Input)
     var showDatePicker by remember { mutableStateOf(false) }
+    var studentId by remember { mutableStateOf(requestMaker.studentId?: "") }
+    val getLocalDateObjectForSelected = { LocalDate.ofEpochDay(dateState.selectedDateMillis!!.toLong() / (24 * 60 * 60 * 1000)) }
+    var goToHomeworkList by remember { mutableStateOf(false) }
+    var loginResponse: ErrorType = ErrorInvalidLogin()
+    var doReturn by remember { mutableStateOf(true) }
     if (dateState.selectedDateMillis == null) dateState.selectedDateMillis = 1230768000000
 
     Column(modifier.padding(10.dp).verticalScroll(rememberScrollState())) {
@@ -339,7 +373,6 @@ fun LogInScreen(modifier:Modifier = Modifier) {
         Text(
             "Login",
             style = MaterialTheme.typography.displayLarge,
-
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(15.dp)
         )
@@ -350,13 +383,13 @@ fun LogInScreen(modifier:Modifier = Modifier) {
         )
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
-            "BHJKASDJL23",
-            onValueChange = {},
+            studentId,
+            onValueChange = {studentId = it},
             Modifier.padding(start = 15.dp, end = 15.dp).fillMaxWidth(),
             label = { Text("Classcharts code") })
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
-            LocalDate.ofEpochDay(dateState.selectedDateMillis!!.toLong() / (24 * 60 * 60 * 1000))
+            getLocalDateObjectForSelected()
                 .format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
             onValueChange = {},
             Modifier
@@ -390,7 +423,18 @@ fun LogInScreen(modifier:Modifier = Modifier) {
         Row {
             Spacer(Modifier.weight(1f))
             Button(
-                onClick = { null }, content = { Text("Login") }, modifier = Modifier
+                onClick = {
+                    runBlocking {
+                        loginResponse = requestMaker.login(
+                            id = studentId,
+                            dob = getLocalDateObjectForSelected().toString()
+                        )
+                    }
+                    Log.d("RealLoginResponse", loginResponse.toString())
+                    navigate()
+                    doReturn = false
+                    doReturn = true
+                }, content = { Text("Login") }, modifier = Modifier
                 .padding(end = 15.dp), colors = ButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -398,9 +442,10 @@ fun LogInScreen(modifier:Modifier = Modifier) {
                     disabledContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
-
         }
     }
+    if (doReturn) return loginResponse
+    else return loginResponse
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -475,58 +520,57 @@ fun HomeworkAttachmentCard(attachment: Attachment, modifier:Modifier = Modifier)
             .height(80.dp)
     }
     Card(outerCardModifier.clickable(onClick = openLink)) {
-            Row() {
-                Card(
-                    Modifier
-                        .width(80.dp)
-                        .padding(5.dp)
-                        .clickable(onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(
-                                    Uri.parse(attachment.link),
-                                    attachment.link.getMimeType()
-                                )
-                                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            }
-                            context.startActivity(intent)
-                        }),
-                    colors = CardColors(
-                        MaterialTheme.colorScheme.surfaceContainer,
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                        MaterialTheme.colorScheme.errorContainer,
-                        MaterialTheme.colorScheme.onErrorContainer
-                    ),
-
-                    ) {
-                    var cardIcon: Int
-                    if (attachment.isFile) {
-                        cardIcon = R.drawable.file
-                    } else {
-                        cardIcon = R.drawable.link4
-                    }
-                    Image(
-                        painterResource(cardIcon), "link",
-                        modifier = Modifier
-                            .padding(10.dp)
-                            .align(Alignment.CenterHorizontally)
-                    )
-                }
-                Text(
-                    attachment.name,
-                    modifier = Modifier.padding(
-                        start = 5.dp,
-                        top = 10.dp,
-                        bottom = 5.dp,
-                        end = 10.dp
-                    ),
-                    onTextLayout = { textLayoutResult ->
-                        if (!textLayoutResult.hasVisualOverflow) {
-                            attachmentExpanded = true
+        Row() {
+            Card(
+                Modifier
+                    .width(80.dp)
+                    .padding(5.dp)
+                    .clickable(onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(
+                                Uri.parse(attachment.link),
+                                attachment.link.getMimeType()
+                            )
+                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
-                    })
-            }
-        }
+                        context.startActivity(intent)
+                    }),
+                colors = CardColors(
+                    MaterialTheme.colorScheme.surfaceContainer,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    MaterialTheme.colorScheme.errorContainer,
+                    MaterialTheme.colorScheme.onErrorContainer
+                ),
 
+                ) {
+                var cardIcon: Int
+                if (attachment.isFile) {
+                    cardIcon = R.drawable.file
+                } else {
+                    cardIcon = R.drawable.link4
+                }
+                Image(
+                    painterResource(cardIcon), "link",
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .align(Alignment.CenterHorizontally)
+                )
+            }
+            Text(
+                attachment.name,
+                modifier = Modifier.padding(
+                    start = 5.dp,
+                    top = 10.dp,
+                    bottom = 5.dp,
+                    end = 10.dp
+                ),
+                onTextLayout = { textLayoutResult ->
+                    if (!textLayoutResult.hasVisualOverflow) {
+                        attachmentExpanded = true
+                    }
+                })
+        }
+    }
 }
 
 private fun String.getMimeType(): String? {

@@ -21,6 +21,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Contextual
@@ -70,6 +71,15 @@ data class Homework(
     )
 
 
+open class ErrorType
+
+class ErrorInvalidLogin : ErrorType()
+class Success: ErrorType()
+class ErrorNetwork: ErrorType()
+class ErrorText : ErrorType()
+class ErrorWaiting : ErrorType()
+
+
 class RequestMaker {
     private val client = OkHttpClient()
     val gson = Gson()
@@ -92,28 +102,31 @@ class RequestMaker {
         preferences[STUDENT_DOB] ?: ""
     }
 
-    suspend fun writeId() {
+    suspend fun writeId(id: String) {
         MainActivity.instance.appDataStore.updateData {
             it.toMutablePreferences().also { preferences ->
-                preferences[STUDENT_ID] = studentId?: ""
+                preferences[STUDENT_ID] = id
+                studentId = id
             }
         }
     }
 
-    suspend fun writeDob() {
+    suspend fun writeDob(dob: String) {
         MainActivity.instance.appDataStore.updateData {
             it.toMutablePreferences().also { preferences ->
-                preferences[STUDENT_DOB] = studentDob?: ""
+                preferences[STUDENT_DOB] = dob
+                studentDob = dob
             }
         }
     }
 
     constructor() {
+
     }
 
     constructor(id: String?, dob: String?) {
-        var id: String = id?: idFlow().toString()
-        var dob: String = dob?: dobFlow().toString()
+        var id: String = id?: runBlocking { idFlow().first() }
+        var dob: String = dob?: runBlocking { dobFlow().first() }
 
         val requestBody = FormBody.Builder()
             .add("code", id)
@@ -132,11 +145,9 @@ class RequestMaker {
             if (!response.isSuccessful) print(response)//throw _root_ide_package_.okio.IOException("Unexpected code $response")
             studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             sessionId = studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
-            studentId = id
-            studentDob = dob
             runBlocking {
-                writeId()
-                writeDob()
+                writeId(id)
+                writeDob(dob)
             }
         }
     }
@@ -146,6 +157,47 @@ class RequestMaker {
 
         if (!studentPing()) throw IOException("Ping no work, check internet? Or reauth")
     }
+
+    suspend fun login(id: String? = null, dob: String? = null): ErrorType {
+        var id: String = id?: ""
+        var dob: String = dob?: ""
+        if (id == "") {
+            // Log.d("DataStoredID", idFlow().first())
+            id = idFlow().first()
+        }
+        if (dob == "") {
+            dob = dobFlow().first()
+        }
+
+        val requestBody = FormBody.Builder()
+            .add("code", id)
+            .add("remember", "true")
+            .add("recaptcha-session_id", "no-session_id-available")
+            .add("dob", dob)
+            .build()
+
+        val request = Request.Builder()
+            .url("https://www.classcharts.com/apiv2student/login")
+            .post(requestBody)
+            .build()
+
+
+        client.newCall(request).execute().use { response -> // was an Error here
+            if (!response.isSuccessful) return ErrorNetwork() //throw _root_ide_package_.okio.IOException("Unexpected code $response")
+            studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            try {
+                sessionId =
+                    studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
+            }
+            catch (e: Exception) {
+                return ErrorInvalidLogin()
+            }
+            writeId(id)
+            writeDob(dob)
+        }
+        return Success()
+    }
+
 
     fun yesno_to_truefalse(yesno: String): Boolean {
         if (yesno == "yes") return true
@@ -168,7 +220,7 @@ class RequestMaker {
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             try {
                 sessionId = jsonResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
-                studentId = jsonResponse?.getAsJsonObject("data")?.getAsJsonObject("user")?.get("id")?.asString
+                // studentId = jsonResponse?.getAsJsonObject("data")?.getAsJsonObject("user")?.get("id")?.asString
                 return true
             }
             catch (e: Error) {
@@ -186,7 +238,7 @@ class RequestMaker {
                 val isComplete = yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
                 if (!onlyIncomplete || !isComplete) {
                     var attachments: MutableList<Attachment> = mutableListOf()
-                    
+
                     for (i in i.asJsonObject.getAsJsonArray("validated_links")) {
                         attachments += Attachment(
                             name = i.asJsonObject.get("link")!!.asString,
