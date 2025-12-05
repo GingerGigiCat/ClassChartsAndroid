@@ -62,11 +62,12 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
     implementation("com.google.code.gson:gson:2.8.5")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("androidx.datastore:datastore:1.2.0")
-
+    implementation("io.arrow-kt:arrow-core:2.0.0")
+    implementation("io.arrow-kt:arrow-fx-coroutines:2.0.0")
 }

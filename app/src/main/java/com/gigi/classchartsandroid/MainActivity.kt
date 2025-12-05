@@ -51,6 +51,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -77,6 +79,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import arrow.core.Either
+import arrow.core.left
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -87,11 +91,20 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
 // Features to add:
-// Tickable homeworks
+// Tickable homeworks DONE but make it work on the actual homework page
 // Timetable
-// Login page
+// Login page DONE
 // Add notes to homeworks
 // Half tick homeworks
+// Shading of incomplete homeworks
+// fix networkonmainthread
+// make it not hang when you do anything
+// figure out why the calendar is laggy to open
+// implement loading wheels and nice error handling
+// Export your homework list and then import to a friend? because storing friend's classcharts code directly is kind of a bit very insecure
+// Animations! like for ticking off a homework so it doesn't just abruptly disappear
+// Make opening microsoft documents not crash it
+// Login with microsoft
 
 val Context.appDataStore: DataStore<Preferences> by preferencesDataStore("settings")
 
@@ -147,7 +160,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.secondary
                 )
             )
-
+            requestMaker.listLessons(LocalDate.now())
             val navController = rememberNavController()
             var startDestination: ScreenObject = LoginScreenObject
             if (loginResponse is ErrorInvalidLogin) {
@@ -723,6 +736,44 @@ fun GreetingPreview() {
                     ),
                     compact = false
                 )
+            }
+        }
+    }
+}
+
+
+@Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun TimetableScreen() {
+    var lessonsList = mutableListOf<Lesson>()
+    if (LocalInspectionMode.current) {
+        lessonsList += Lesson(teacherName="Mx C Teacher", lessonName="12CA/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="2025-12-05T08:40:00+00:00", endTime="2025-12-05T09:00:00+00:00", key="1157931873")
+        lessonsList += Lesson(teacherName="Mrs E Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="1", roomName="L01", startTime="2025-12-05T09:00:00+00:00", endTime="2025-12-05T10:00:00+00:00", key="1192664549")
+        lessonsList += Lesson(teacherName="Ms H Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="2", roomName="L06", startTime="2025-12-05T10:05:00+00:00", endTime="2025-12-05T11:05:00+00:00", key="1192664561")
+        lessonsList += Lesson(teacherName="Mr D Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="3", roomName="U07", startTime="2025-12-05T11:25:00+00:00", endTime="2025-12-05T12:25:00+00:00", key="1157937234")
+        lessonsList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="2025-12-05T12:30:00+00:00", endTime="2025-12-05T13:30:00+00:00", key="1157941107")
+    }
+    else {
+        val requestMaker = RequestMaker()
+        runBlocking { requestMaker.login(null, null) }
+        val lessonsListResponse by remember { mutableStateOf(requestMaker.listLessons(LocalDate.now()))}
+        if (lessonsListResponse.isLeft()) {
+            lessonsList = lessonsListResponse.leftOrNull()?: mutableListOf<Lesson>()
+        }
+    }
+
+
+    ClassChartsAndroidTheme {
+        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) { innerPadding ->
+            Column(Modifier.padding(innerPadding).padding(10.dp).verticalScroll(rememberScrollState())) {
+                for (lesson in lessonsList) {
+                    Row {
+                        Text(lesson.periodNumber.toString())
+                        Card {
+                            Text(lesson.subjectName)
+                        }
+                    }
+                }
             }
         }
     }

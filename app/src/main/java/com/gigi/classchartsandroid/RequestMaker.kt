@@ -1,30 +1,17 @@
 package com.gigi.classchartsandroid
-import android.app.Application
-import android.content.Context
 import android.util.Log
-import android.view.textclassifier.TextLinks
-import androidx.activity.ComponentActivity
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.datastore.core.DataStore
-import androidx.datastore.dataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import arrow.core.Either
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -69,6 +56,18 @@ data class Homework(
     val id: String? = null,
     val attachments: MutableList<Attachment>? = null
     )
+
+data class Lesson(
+    val teacherName: String,
+    val lessonName: String,
+    val subjectName: String,
+    val isAlternativeLesson: Boolean,
+    val periodNumber: String,
+    val roomName: String,
+    val startTime: String,
+    val endTime: String,
+    val key: String
+)
 
 
 open class ErrorType
@@ -277,9 +276,6 @@ class RequestMaker {
                      endDate: LocalDate = LocalDate.now().plusDays(366)): JsonArray? {
         // To get current date: LocalDate.now()
 
-        val requestBody = FormBody.Builder()
-            .build()
-
         val url = "https://www.classcharts.com/apiv2student/homeworks/$studentId".toHttpUrlOrNull()!!
             .newBuilder()
             .addQueryParameter("display_date", "due_date")
@@ -306,10 +302,7 @@ class RequestMaker {
         }
     }
 
-    fun tickHomework(id: String) {
-        val requestBody = FormBody.Builder()
-            .build()
-
+    fun tickHomework(id: String? = studentId) {
         val url = "https://www.classcharts.com/apiv2student/homeworkticked/$id".toHttpUrlOrNull()!!
             .newBuilder()
             .addQueryParameter("studentId", studentId)
@@ -324,4 +317,38 @@ class RequestMaker {
             if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
         }
     }
+
+    fun listLessons(date: LocalDate): Either<MutableList<Lesson>, ErrorType> {
+        val url = "https://www.classcharts.com/apiv2student/timetable/$studentId".toHttpUrlOrNull()!!
+            .newBuilder()
+            .addQueryParameter("date", date.toString())
+            .build()
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Basic $sessionId")
+            .build()
+
+        var lessonList = mutableListOf<Lesson>()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return Either.Right(ErrorNetwork())
+            val jsonResponse  = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            for (i in jsonResponse.getAsJsonArray("data")) {
+                val l = i.asJsonObject
+                lessonList += Lesson(
+                    teacherName = l.get("teacher_name")?.toString()?: "Mx. Teacher",
+                    lessonName = l.get("lesson_name")?.toString()?: "Lesson",
+                    subjectName = l.get("subject_name")?.toString()?: "Subject",
+                    isAlternativeLesson = l.get("is_alternative_lesson")?.toString()?.toBoolean()?: false,
+                    periodNumber = l.get("period_number")?.toString()?: "0",
+                    roomName = l.get("room_name")?.toString()?: "Room",
+                    startTime = l.get("start_time")?.toString()?: "1970-01-01T00:00:00+00:00",
+                    endTime = l.get("end_time")?.toString()?: "1970-01-01T00:00:00+00:00",
+                    key = l.get("key")?.toString()?: "0"
+                )
+            }
+        }
+        return Either.Left(lessonList)
+    }
+
 }
