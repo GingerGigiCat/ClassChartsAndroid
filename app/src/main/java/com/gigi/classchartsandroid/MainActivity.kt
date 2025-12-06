@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -60,7 +61,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -87,6 +92,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
@@ -133,6 +139,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         lateinit var instance: MainActivity
             private set
+        fun isInstanceInitialised() = ::instance.isInitialized
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -746,8 +753,8 @@ fun GreetingPreview() {
 @Composable
 fun TimetableScreen() {
     var lessonsList = mutableListOf<Lesson>()
-    if (LocalInspectionMode.current) {
-        lessonsList += Lesson(teacherName="Mx C Teacher", lessonName="12CA/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="2025-12-05T08:40:00+00:00", endTime="2025-12-05T09:00:00+00:00", key="1157931873")
+    if ( !MainActivity.isInstanceInitialised() ) {
+        lessonsList += Lesson(teacherName="Mx C Teacher", lessonName="12C/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="2025-12-05T08:40:00+00:00", endTime="2025-12-05T09:00:00+00:00", key="1157931873")
         lessonsList += Lesson(teacherName="Mrs E Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="1", roomName="L01", startTime="2025-12-05T09:00:00+00:00", endTime="2025-12-05T10:00:00+00:00", key="1192664549")
         lessonsList += Lesson(teacherName="Ms H Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="2", roomName="L06", startTime="2025-12-05T10:05:00+00:00", endTime="2025-12-05T11:05:00+00:00", key="1192664561")
         lessonsList += Lesson(teacherName="Mr D Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="3", roomName="U07", startTime="2025-12-05T11:25:00+00:00", endTime="2025-12-05T12:25:00+00:00", key="1157937234")
@@ -766,13 +773,25 @@ fun TimetableScreen() {
     ClassChartsAndroidTheme {
         Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) { innerPadding ->
             Column(Modifier.padding(innerPadding).padding(10.dp).verticalScroll(rememberScrollState())) {
+                var leftSizeDp by remember { mutableStateOf(10.dp) }
+                val density = LocalDensity.current
                 for (lesson in lessonsList) {
                     Row {
-                        Text(lesson.periodNumber.toString())
-                        Card {
-                            Text(lesson.subjectName)
+                        Column {
+                            Text(lesson.periodNumber)
+                            Text(LocalDateTime.parse(lesson.startTime.substring(0, 19)).format(DateTimeFormatter.ofPattern("HH:mm")))
+                            Text("- ${LocalDateTime.parse(lesson.endTime.substring(0, 19)).format(DateTimeFormatter.ofPattern("HH:mm"))}")
+                        }
+                        Spacer(Modifier.width(15.dp))
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(10.dp)) {
+                                Text("${lesson.subjectName} - ${lesson.lessonName}")
+                                Text(lesson.teacherName)
+                                Text(lesson.roomName)
+                            }
                         }
                     }
+                    Spacer(Modifier.height(20.dp))
                 }
             }
         }
