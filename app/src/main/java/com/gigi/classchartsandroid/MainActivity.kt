@@ -111,6 +111,7 @@ import kotlin.math.max
 // Animations! like for ticking off a homework so it doesn't just abruptly disappear
 // Make opening microsoft documents not crash it
 // Login with microsoft
+// Make the timetable show free periods
 
 val Context.appDataStore: DataStore<Preferences> by preferencesDataStore("settings")
 
@@ -754,11 +755,11 @@ fun GreetingPreview() {
 fun TimetableScreen() {
     var lessonsList = mutableListOf<Lesson>()
     if ( !MainActivity.isInstanceInitialised() ) {
-        lessonsList += Lesson(teacherName="Mx C Teacher", lessonName="12C/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="2025-12-05T08:40:00+00:00", endTime="2025-12-05T09:00:00+00:00", key="1157931873")
-        lessonsList += Lesson(teacherName="Mrs E Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="1", roomName="L01", startTime="2025-12-05T09:00:00+00:00", endTime="2025-12-05T10:00:00+00:00", key="1192664549")
-        lessonsList += Lesson(teacherName="Ms H Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="2", roomName="L06", startTime="2025-12-05T10:05:00+00:00", endTime="2025-12-05T11:05:00+00:00", key="1192664561")
-        lessonsList += Lesson(teacherName="Mr D Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="3", roomName="U07", startTime="2025-12-05T11:25:00+00:00", endTime="2025-12-05T12:25:00+00:00", key="1157937234")
-        lessonsList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="2025-12-05T12:30:00+00:00", endTime="2025-12-05T13:30:00+00:00", key="1157941107")
+        lessonsList += Lesson(teacherName="Mx C Teacher", lessonName="12C/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="2025-12-06T08:40:00+00:00", endTime="2025-12-06T09:00:00+00:00", key="1157931873")
+        lessonsList += Lesson(teacherName="Mrs E Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="1", roomName="L01", startTime="2025-12-06T09:00:00+00:00", endTime="2025-12-06T10:00:00+00:00", key="1192664549")
+        lessonsList += Lesson(teacherName="Ms H Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="2", roomName="L06", startTime="2025-12-06T10:05:00+00:00", endTime="2025-12-06T11:05:00+00:00", key="1192664561")
+        lessonsList += Lesson(teacherName="Mr D Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="3", roomName="U07", startTime="2025-12-06T11:25:00+00:00", endTime="2025-12-06T12:25:00+00:00", key="1157937234")
+        lessonsList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="2025-12-06T12:30:00+00:00", endTime="2025-12-06T13:30:00+00:00", key="1157941107")
     }
     else {
         val requestMaker = RequestMaker()
@@ -776,14 +777,25 @@ fun TimetableScreen() {
                 var leftSizeDp by remember { mutableStateOf(10.dp) }
                 val density = LocalDensity.current
                 for (lesson in lessonsList) {
+                    val startTime = LocalDateTime.parse(lesson.startTime.substring(0, 19))
+                    val endTime = LocalDateTime.parse(lesson.endTime.substring(0, 19))
                     Row {
                         Column {
                             Text(lesson.periodNumber)
-                            Text(LocalDateTime.parse(lesson.startTime.substring(0, 19)).format(DateTimeFormatter.ofPattern("HH:mm")))
+                            Text(startTime.format(DateTimeFormatter.ofPattern("HH:mm")))
                             Text("- ${LocalDateTime.parse(lesson.endTime.substring(0, 19)).format(DateTimeFormatter.ofPattern("HH:mm"))}")
                         }
                         Spacer(Modifier.width(15.dp))
-                        Card(Modifier.fillMaxWidth()) {
+                        var cardColors = CardDefaults.cardColors()
+                        if (startTime <= LocalDateTime.now() && LocalDateTime.now() <= endTime) {
+                            cardColors = CardColors(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.onPrimaryContainer,
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        Card(Modifier.fillMaxWidth(), colors = cardColors) {
                             Column(Modifier.padding(10.dp)) {
                                 Text("${lesson.subjectName} - ${lesson.lessonName}")
                                 Text(lesson.teacherName)
