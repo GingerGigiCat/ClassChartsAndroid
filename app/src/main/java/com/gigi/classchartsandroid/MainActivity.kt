@@ -28,6 +28,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
@@ -39,9 +43,12 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -54,13 +61,17 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
@@ -80,6 +91,7 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.navigation.ActivityNavigator
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -90,6 +102,7 @@ import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -120,6 +133,7 @@ class MainActivity : ComponentActivity() {
 
     @Serializable
     object HomeworkListObject : ScreenObject()
+
     @Serializable
     data class HomeworkContentObject(
         val title: String,
@@ -136,6 +150,15 @@ class MainActivity : ComponentActivity() {
 
     @Serializable
     object LoginScreenObject : ScreenObject()
+
+    @Serializable
+    object TimetableScreenObject : ScreenObject()
+
+    data class NavigationItem(
+        val title: String,
+        val icon: ImageVector,
+        val route: ScreenObject
+    )
 
     companion object {
         lateinit var instance: MainActivity
@@ -171,6 +194,16 @@ class MainActivity : ComponentActivity() {
             requestMaker.listLessons(LocalDate.now())
             val navController = rememberNavController()
             var startDestination: ScreenObject = LoginScreenObject
+            var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
+            val destinations = listOf(
+                NavigationItem("Homework",
+                    Icons.AutoMirrored.Filled.List,
+                    HomeworkListObject),
+                NavigationItem("Timetable",
+                    Icons.Default.DateRange,
+                    TimetableScreenObject)
+            )
+
             if (loginResponse is ErrorInvalidLogin) {
                 startDestination = LoginScreenObject
             } // TODO: add handling for waiting and network error
@@ -179,12 +212,31 @@ class MainActivity : ComponentActivity() {
             }
             Log.d("LoginResponse", loginResponse.toString()) // TODO: figure out why this is always error
 
+            val navBar = @androidx.compose.runtime.Composable {
+                NavigationBar {
+                    destinations.forEachIndexed { index, item: NavigationItem ->
+                        NavigationBarItem(
+                            selected = (index == selectedDestination),
+                            onClick = {
+                                if (index != selectedDestination) {
+                                    navController.navigate(item.route)
+                                    selectedDestination = index
+                                }
+                            },
+                            icon = {
+                                Icon(item.icon, item.title)
+                            },
+                            label = { Text(item.title) }
+                        )
+                    }
+                }
+            }
 
             NavHost(navController, startDestination = startDestination) {
                 composable<HomeworkListObject> {
                     //HomeworkList(requestMaker = requestMaker, homeworksList = homeworksList, onlyIncomplete = true)
                     ClassChartsAndroidTheme {
-                        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) { innerPadding ->
+                        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow, bottomBar = navBar) { innerPadding ->
                             Column(modifier = Modifier
                                 .padding(innerPadding)
                             ) {
@@ -253,6 +305,9 @@ class MainActivity : ComponentActivity() {
                             )})
                         }
                     }
+                }
+                composable<TimetableScreenObject> {
+                    TimetableScreen(navBar)
                 }
             }
         }
@@ -752,7 +807,7 @@ fun GreetingPreview() {
 
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-fun TimetableScreen() {
+fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
     var lessonsList = mutableListOf<Lesson>()
     if ( !MainActivity.isInstanceInitialised() ) {
         lessonsList += Lesson(teacherName="Mx C Teacher", lessonName="12C/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="2025-12-06T08:40:00+00:00", endTime="2025-12-06T09:00:00+00:00", key="1157931873")
@@ -772,7 +827,7 @@ fun TimetableScreen() {
 
 
     ClassChartsAndroidTheme {
-        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) { innerPadding ->
+        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow, bottomBar = navBar) { innerPadding ->
             Column(Modifier.padding(innerPadding).padding(10.dp).verticalScroll(rememberScrollState())) {
                 var leftSizeDp by remember { mutableStateOf(10.dp) }
                 val density = LocalDensity.current
@@ -809,3 +864,4 @@ fun TimetableScreen() {
         }
     }
 }
+
