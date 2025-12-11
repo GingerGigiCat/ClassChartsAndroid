@@ -3,6 +3,7 @@ import android.util.Log
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.text.toLowerCase
 import androidx.datastore.preferences.core.stringPreferencesKey
 import arrow.core.Either
 import com.google.gson.Gson
@@ -66,7 +67,7 @@ data class Lesson(
     val roomName: String,
     val startTime: String,
     val endTime: String,
-    val key: String
+    val key: Int
 )
 
 
@@ -168,6 +169,11 @@ class RequestMaker {
             dob = dobFlow().first()
         }
 
+        if (id.lowercase() == "demo") {
+            sessionId = "demo"
+            return Success()
+        }
+
         val requestBody = FormBody.Builder()
             .add("code", id)
             .add("remember", "true")
@@ -198,7 +204,7 @@ class RequestMaker {
     }
 
 
-    fun yesno_to_truefalse(yesno: String): Boolean {
+    fun yesnoToTruefalse(yesno: String): Boolean {
         if (yesno == "yes") return true
         else return false
     }
@@ -234,7 +240,7 @@ class RequestMaker {
         val homeworks = getHomeworks()
         if (homeworks != null) {
             for (i in homeworks) {
-                val isComplete = yesno_to_truefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
+                val isComplete = yesnoToTruefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
                 if (!onlyIncomplete || !isComplete) {
                     var attachments: MutableList<Attachment> = mutableListOf()
 
@@ -336,15 +342,15 @@ class RequestMaker {
             for (i in jsonResponse.getAsJsonArray("data")) {
                 val l = i.asJsonObject
                 lessonList += Lesson(
-                    teacherName = l.get("teacher_name")?.toString()?: "Mx. Teacher",
-                    lessonName = l.get("lesson_name")?.toString()?: "Lesson",
-                    subjectName = l.get("subject_name")?.toString()?: "Subject",
+                    teacherName = l.get("teacher_name")?.toString()?.replace("\"", "")?: "Mx. Teacher",
+                    lessonName = l.get("lesson_name")?.toString()?.replace("\"", "")?: "Lesson",
+                    subjectName = l.get("subject_name")?.toString()?.replace("\"", "")?: "Subject",
                     isAlternativeLesson = l.get("is_alternative_lesson")?.toString()?.toBoolean()?: false,
-                    periodNumber = l.get("period_number")?.toString()?: "0",
-                    roomName = l.get("room_name")?.toString()?: "Room",
-                    startTime = l.get("start_time")?.toString()?: "1970-01-01T00:00:00+00:00",
-                    endTime = l.get("end_time")?.toString()?: "1970-01-01T00:00:00+00:00",
-                    key = l.get("key")?.toString()?: "0"
+                    periodNumber = l.get("period_number")?.toString()?.replace("\"", "")?: "0",
+                    roomName = l.get("room_name")?.toString()?.replace("\"", "")?: "Room",
+                    startTime = l.get("start_time")?.toString()?.replace("\"", "")?: "1970-01-01T00:00:00+00:00",
+                    endTime = l.get("end_time")?.toString()?.replace("\"", "")?: "1970-01-01T00:00:00+00:00",
+                    key = l.get("key")?.toString()?.toInt()?: 0
                 )
             }
         }

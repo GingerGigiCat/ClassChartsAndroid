@@ -464,36 +464,7 @@ fun LogInScreen(modifier:Modifier = Modifier, requestMaker: RequestMaker, naviga
             Modifier.padding(start = 15.dp, end = 15.dp).fillMaxWidth(),
             label = { Text("Classcharts code") })
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(
-            getLocalDateObjectForSelected()
-                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-            onValueChange = {},
-            Modifier
-                .padding(start = 15.dp, end = 15.dp)
-                .fillMaxWidth()
-                .clickable(onClick = { showDatePicker = true }),
-            label = { Text("Date of birth") },
-            enabled = false,
-            colors = TextFieldDefaults.colors(
-                disabledTextColor = LocalContentColor.current,
-                disabledContainerColor = Color.Transparent,
-                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledPlaceholderColor = LocalContentColor.current,
-                disabledIndicatorColor = MaterialTheme.colorScheme.outline,
-                disabledSupportingTextColor = MaterialTheme.colorScheme.outline,
-                disabledPrefixColor = MaterialTheme.colorScheme.outline
-            ),
-            leadingIcon = {
-                Image(
-                    painterResource(R.drawable.calendar),
-                    contentDescription = "Calendar icon",
-                    modifier = Modifier
-                        .padding(start = 6.dp)
-                        .size(25.dp)
-                        .align(Alignment.CenterHorizontally)
-                )
-            }
-        )
+        DatePickerButton(getLocalDateObjectForSelected, {showDatePicker = true})
         if (showDatePicker) dateState = DoDatePicker(dateState, { showDatePicker = false })
         Spacer(Modifier.height(15.dp))
         Row {
@@ -522,6 +493,39 @@ fun LogInScreen(modifier:Modifier = Modifier, requestMaker: RequestMaker, naviga
     }
     if (doReturn) return loginResponse
     else return loginResponse
+}
+
+@Composable
+fun DatePickerButton(getLocalDate: () -> LocalDate, onClick: () -> Unit, label: String = "Date of birth") {
+    OutlinedTextField(
+        getLocalDate()
+            .format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+        onValueChange = {},
+        Modifier
+            .padding(start = 15.dp, end = 15.dp)
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        label = { Text(label) },
+        enabled = false,
+        colors = TextFieldDefaults.colors(
+            disabledTextColor = LocalContentColor.current,
+            disabledContainerColor = Color.Transparent,
+            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledPlaceholderColor = LocalContentColor.current,
+            disabledIndicatorColor = MaterialTheme.colorScheme.outline,
+            disabledSupportingTextColor = MaterialTheme.colorScheme.outline,
+            disabledPrefixColor = MaterialTheme.colorScheme.outline
+        ),
+        leadingIcon = {
+            Image(
+                painterResource(R.drawable.calendar),
+                contentDescription = "Calendar icon",
+                modifier = Modifier
+                    .padding(start = 6.dp)
+                    .size(25.dp)
+            )
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -804,33 +808,60 @@ fun GreetingPreview() {
     }
 }
 
+fun getMillisForLocalDate(date: LocalDate): Long {
+    return date.toEpochDay() * 24 * 60 * 60 * 1000
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
-    var lessonsList = mutableListOf<Lesson>()
-    if ( !MainActivity.isInstanceInitialised() ) {
-        lessonsList += Lesson(teacherName="Mx C Teacher", lessonName="12C/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="2025-12-06T08:40:00+00:00", endTime="2025-12-06T09:00:00+00:00", key="1157931873")
-        lessonsList += Lesson(teacherName="Mrs E Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="1", roomName="L01", startTime="2025-12-06T09:00:00+00:00", endTime="2025-12-06T10:00:00+00:00", key="1192664549")
-        lessonsList += Lesson(teacherName="Ms H Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="2", roomName="L06", startTime="2025-12-06T10:05:00+00:00", endTime="2025-12-06T11:05:00+00:00", key="1192664561")
-        lessonsList += Lesson(teacherName="Mr D Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="3", roomName="U07", startTime="2025-12-06T11:25:00+00:00", endTime="2025-12-06T12:25:00+00:00", key="1157937234")
-        lessonsList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="2025-12-06T12:30:00+00:00", endTime="2025-12-06T13:30:00+00:00", key="1157941107")
+    val lessonsList = remember { mutableStateListOf<Lesson>() }
+    var dateState = rememberDatePickerState(initialDisplayMode = DisplayMode.Picker)
+    val getLocalDateObjectForSelected = { LocalDate.ofEpochDay(dateState.selectedDateMillis!!.toLong() / (24 * 60 * 60 * 1000)) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var lessonsListResponse by remember { mutableStateOf<Either<MutableList<Lesson>, ErrorType>?>(null) }
+    val requestMaker = RequestMaker()
+
+    if (dateState.selectedDateMillis == null) dateState.selectedDateMillis = getMillisForLocalDate(LocalDate.now())
+
+    if ( !MainActivity.isInstanceInitialised() || requestMaker.sessionId == "demo" ) {
+        lessonsList += Lesson(teacherName="Mx C Teacher", lessonName="12C/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="${LocalDate.now().toString()}T08:40:00+00:00", endTime="${LocalDate.now().toString()}T09:00:00+00:00", key=1157931873)
+        lessonsList += Lesson(teacherName="Mrs E Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="1", roomName="L01", startTime="${LocalDate.now().toString()}T09:00:00+00:00", endTime="${LocalDate.now().toString()}T10:00:00+00:00", key=1192664549)
+        lessonsList += Lesson(teacherName="Ms H Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="2", roomName="L06", startTime="${LocalDate.now().toString()}T10:05:00+00:00", endTime="${LocalDate.now().toString()}T11:05:00+00:00", key=1192664561)
+        lessonsList += Lesson(teacherName="Mr D Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="3", roomName="U07", startTime="${LocalDate.now().toString()}T11:25:00+00:00", endTime="${LocalDate.now().toString()}T12:25:00+00:00", key=1157937234)
+        lessonsList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="${LocalDate.now().toString()}T12:30:00+00:00", endTime="${LocalDate.now().toString()}T13:30:00+00:00", key=1157941107)
     }
     else {
-        val requestMaker = RequestMaker()
         runBlocking { requestMaker.login(null, null) }
-        val lessonsListResponse by remember { mutableStateOf(requestMaker.listLessons(LocalDate.now()))}
-        if (lessonsListResponse.isLeft()) {
-            lessonsList = lessonsListResponse.leftOrNull()?: mutableListOf<Lesson>()
+        lessonsListResponse = requestMaker.listLessons(getLocalDateObjectForSelected())
+        if (lessonsListResponse != null) {
+            if (lessonsListResponse!!.isLeft()) {
+                if (lessonsListResponse!!.leftOrNull() != null) {
+                    lessonsList.clear()
+                    lessonsList.addAll(lessonsListResponse!!.leftOrNull() ?: mutableListOf<Lesson>())
+                }
+            }
         }
     }
 
 
     ClassChartsAndroidTheme {
         Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow, bottomBar = navBar) { innerPadding ->
-            Column(Modifier.padding(innerPadding).padding(10.dp).verticalScroll(rememberScrollState())) {
+            Column(Modifier.padding(innerPadding).padding(start=10.dp, end=10.dp, top=10.dp).verticalScroll(rememberScrollState())) {
                 var leftSizeDp by remember { mutableStateOf(10.dp) }
                 val density = LocalDensity.current
+                
+                DatePickerButton(getLocalDateObjectForSelected, { showDatePicker = true }, "Date")
+                Spacer(Modifier.height(15.dp))
+                if (showDatePicker) dateState = DoDatePicker(dateState,  {
+                    showDatePicker = false
+                    if (MainActivity.isInstanceInitialised()) {
+                        lessonsListResponse =
+                            requestMaker.listLessons(getLocalDateObjectForSelected())
+                    }
+                })
+
                 for (lesson in lessonsList) {
                     val startTime = LocalDateTime.parse(lesson.startTime.substring(0, 19))
                     val endTime = LocalDateTime.parse(lesson.endTime.substring(0, 19))
@@ -838,7 +869,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                         Column {
                             Text(lesson.periodNumber)
                             Text(startTime.format(DateTimeFormatter.ofPattern("HH:mm")))
-                            Text("- ${LocalDateTime.parse(lesson.endTime.substring(0, 19)).format(DateTimeFormatter.ofPattern("HH:mm"))}")
+                            Text(LocalDateTime.parse(lesson.endTime.substring(0, 19)).format(DateTimeFormatter.ofPattern("HH:mm")))
                         }
                         Spacer(Modifier.width(15.dp))
                         var cardColors = CardDefaults.cardColors()
