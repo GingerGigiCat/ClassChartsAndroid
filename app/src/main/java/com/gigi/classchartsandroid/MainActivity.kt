@@ -191,7 +191,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.secondary
                 )
             )
-            requestMaker.listLessons(LocalDate.now())
+            //requestMaker.listLessons(LocalDate.now())
             val navController = rememberNavController()
             var startDestination: ScreenObject = LoginScreenObject
             var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
@@ -241,8 +241,9 @@ class MainActivity : ComponentActivity() {
                                 .padding(innerPadding)
                             ) {
                                 ShowCompletedHomeworksToggle(showCompletedHomeworksChecked, {showCompletedHomeworksChecked = it})
+                                val colorScheme = MaterialTheme.colorScheme
                                 LazyColumn {
-                                    requestMaker.refreshHomeworkList(homeworksList, showCompletedHomeworksChecked, linkStyle)
+                                    requestMaker.refreshHomeworkList(homeworksList, showCompletedHomeworksChecked, linkStyle, colorScheme)
                                     itemsIndexed(
                                         items = homeworksList,
                                         key = {index, homework -> homework.id!! }
@@ -325,7 +326,7 @@ fun HomeworkList(requestMaker: RequestMaker, homeworksList: MutableList<Homework
         )
     )
 
-    requestMaker.refreshHomeworkList(homeworksList, onlyIncomplete, linkStyle)
+    requestMaker.refreshHomeworkList(homeworksList, onlyIncomplete, linkStyle, MaterialTheme.colorScheme)
 
     for (homework in homeworksList) {
         HomeworkCard(homework = homework, compact = false, requestMaker = requestMaker)
@@ -357,6 +358,7 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                 verticalAlignment = Alignment.CenterVertically
             ){
                 CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 10.dp) {
+                    val colorScheme = MaterialTheme.colorScheme
                     Checkbox(
                         checked = homework.complete, onCheckedChange =
                             {
@@ -364,7 +366,8 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                                 requestMaker?.refreshHomeworkList(
                                     homeworksList,
                                     onlyIncomplete,
-                                    linkStyle!!
+                                    linkStyle!!,
+                                    colorScheme
                                 )
                             })
                 }
@@ -704,10 +707,11 @@ fun HomeworkContent(homework: Homework, requestMaker: RequestMaker? = null, link
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
+                    val colorScheme = MaterialTheme.colorScheme
                     Checkbox(checked = homework.complete, onCheckedChange = 
                         { 
                             requestMaker?.tickHomework(homework.id!!)
-                            requestMaker?.refreshHomeworkList(homeworksList!!, onlyIncomplete, linkStyle!!)
+                            requestMaker?.refreshHomeworkList(homeworksList!!, onlyIncomplete, linkStyle!!, colorScheme)
                         },
                         modifier = Modifier.align(Alignment.CenterVertically))
                     Spacer(modifier = Modifier.width(10.dp))
@@ -851,7 +855,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
             Column(Modifier.padding(innerPadding).padding(start=10.dp, end=10.dp, top=10.dp).verticalScroll(rememberScrollState())) {
                 var leftSizeDp by remember { mutableStateOf(10.dp) }
                 val density = LocalDensity.current
-                
+
                 DatePickerButton(getLocalDateObjectForSelected, { showDatePicker = true }, "Date")
                 Spacer(Modifier.height(15.dp))
                 if (showDatePicker) dateState = DoDatePicker(dateState,  {
@@ -861,6 +865,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                             requestMaker.listLessons(getLocalDateObjectForSelected())
                     }
                 })
+
 
                 for (lesson in lessonsList) {
                     val startTime = LocalDateTime.parse(lesson.startTime.substring(0, 19))
