@@ -35,7 +35,7 @@ Do note that ticking homeworks, changing the filtering of ticked homeworks, and 
 
 ## Tech notes
 
-This app (currently) has so many ui thread blocking things, which is bad, and has network on main thread which i have to bypass to let the app even run. There is currently some amount but minimal error handling, so it is very likely it can crash or give no output if something weird happens internally.
+This app (currently) has so many ui thread blocking things, which is bad, and has network on main thread which i have to bypass to let the app even run. There is currently some amount but minimal error handling, so it is very likely it can crash or give no output if something weird happens internally. This is my first time ever using kotlin and jetpack compose, so make of that what you will
 
 Here is my todo list for this app, in no particular order:
 
