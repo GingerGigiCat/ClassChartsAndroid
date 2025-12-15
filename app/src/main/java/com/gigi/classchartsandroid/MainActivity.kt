@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -69,6 +71,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -108,10 +111,11 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
+import kotlin.math.round
 
 // Features to add:
 // Tickable homeworks DONE but make it work on the actual homework page
-// Timetable
+// Timetable DONE but add swiping between days
 // Login page DONE
 // Add notes to homeworks
 // Half tick homeworks
@@ -120,11 +124,13 @@ import kotlin.math.max
 // make it not hang when you do anything
 // figure out why the calendar is laggy to open
 // implement loading wheels and nice error handling
-// Export your homework list and then import to a friend? because storing friend's classcharts code directly is kind of a bit very insecure
+// Export your timetable and then import to a friend? because storing friend's classcharts code directly is kind of a bit very insecure
 // Animations! like for ticking off a homework so it doesn't just abruptly disappear
 // Make opening microsoft documents not crash it
-// Login with microsoft
-// Make the timetable show free periods
+// Login with microsoft??
+// Make the timetable show free periods?
+// User addable tasks
+// Offline mode
 
 val Context.appDataStore: DataStore<Preferences> by preferencesDataStore("settings")
 
@@ -855,6 +861,9 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
             Column(Modifier.padding(innerPadding).padding(start=10.dp, end=10.dp, top=10.dp).verticalScroll(rememberScrollState())) {
                 var leftSizeDp by remember { mutableStateOf(10.dp) }
                 val density = LocalDensity.current
+                val pageCount = 10000
+                val pagerState = rememberPagerState(pageCount = {pageCount}, initialPage = pageCount/2)
+                var middlePageDate = LocalDate.now()
 
                 DatePickerButton(getLocalDateObjectForSelected, { showDatePicker = true }, "Date")
                 Spacer(Modifier.height(15.dp))
@@ -864,37 +873,47 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                         lessonsListResponse =
                             requestMaker.listLessons(getLocalDateObjectForSelected())
                     }
+                    middlePageDate = getLocalDateObjectForSelected()
+                    pagerState.requestScrollToPage(pageCount/2)
                 })
 
-
-                for (lesson in lessonsList) {
-                    val startTime = LocalDateTime.parse(lesson.startTime.substring(0, 19))
-                    val endTime = LocalDateTime.parse(lesson.endTime.substring(0, 19))
-                    Row {
-                        Column {
-                            Text(lesson.periodNumber)
-                            Text(startTime.format(DateTimeFormatter.ofPattern("HH:mm")))
-                            Text(LocalDateTime.parse(lesson.endTime.substring(0, 19)).format(DateTimeFormatter.ofPattern("HH:mm")))
-                        }
-                        Spacer(Modifier.width(15.dp))
-                        var cardColors = CardDefaults.cardColors()
-                        if (startTime <= LocalDateTime.now() && LocalDateTime.now() <= endTime) {
-                            cardColors = CardColors(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.onPrimaryContainer,
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                        Card(Modifier.fillMaxWidth(), colors = cardColors) {
-                            Column(Modifier.padding(10.dp)) {
-                                Text("${lesson.subjectName} - ${lesson.lessonName}")
-                                Text(lesson.teacherName)
-                                Text(lesson.roomName)
+                HorizontalPager(pagerState, modifier = Modifier.fillMaxSize()) {
+                    Column(Modifier.padding(start = 5.dp, end = 5.dp).fillMaxSize()) {
+                        dateState.selectedDateMillis =
+                            getMillisForLocalDate(middlePageDate.plusDays(((pagerState.currentPage - pageCount / 2).toLong())))
+                        for (lesson in lessonsList) {
+                            val startTime = LocalDateTime.parse(lesson.startTime.substring(0, 19))
+                            val endTime = LocalDateTime.parse(lesson.endTime.substring(0, 19))
+                            Row {
+                                Column {
+                                    Text(lesson.periodNumber)
+                                    Text(startTime.format(DateTimeFormatter.ofPattern("HH:mm")))
+                                    Text(
+                                        LocalDateTime.parse(lesson.endTime.substring(0, 19))
+                                            .format(DateTimeFormatter.ofPattern("HH:mm"))
+                                    )
+                                }
+                                Spacer(Modifier.width(15.dp))
+                                var cardColors = CardDefaults.cardColors()
+                                if (startTime <= LocalDateTime.now() && LocalDateTime.now() <= endTime) {
+                                    cardColors = CardColors(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.onPrimaryContainer,
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                                Card(Modifier.fillMaxWidth(), colors = cardColors) {
+                                    Column(Modifier.padding(10.dp)) {
+                                        Text("${lesson.subjectName} - ${lesson.lessonName}")
+                                        Text(lesson.teacherName)
+                                        Text(lesson.roomName)
+                                    }
+                                }
                             }
+                            Spacer(Modifier.height(20.dp))
                         }
                     }
-                    Spacer(Modifier.height(20.dp))
                 }
             }
         }
