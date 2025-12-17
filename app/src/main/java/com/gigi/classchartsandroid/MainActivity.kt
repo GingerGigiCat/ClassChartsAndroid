@@ -13,6 +13,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.DraggableState
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -53,6 +57,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -218,7 +223,7 @@ class MainActivity : ComponentActivity() {
             }
             Log.d("LoginResponse", loginResponse.toString()) // TODO: figure out why this is always error
 
-            val navBar = @androidx.compose.runtime.Composable {
+            val navBar = @Composable {
                 NavigationBar {
                     destinations.forEachIndexed { index, item: NavigationItem ->
                         NavigationBarItem(
@@ -308,7 +313,7 @@ class MainActivity : ComponentActivity() {
                     ClassChartsAndroidTheme {
                         Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) { innerPadding ->
                             loginResponse = LogInScreen(Modifier.padding(innerPadding), requestMaker, {navController.navigate(
-                                MainActivity.HomeworkListObject
+                                HomeworkListObject
                             )})
                         }
                     }
@@ -831,7 +836,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
     val getLocalDateObjectForSelected = { LocalDate.ofEpochDay(dateState.selectedDateMillis!!.toLong() / (24 * 60 * 60 * 1000)) }
     var showDatePicker by remember { mutableStateOf(false) }
     var lessonsListResponse by remember { mutableStateOf<Either<MutableList<Lesson>, ErrorType>?>(null) }
-    val requestMaker = RequestMaker()
+    val requestMaker by remember { mutableStateOf(RequestMaker()) }
 
     if (dateState.selectedDateMillis == null) dateState.selectedDateMillis = getMillisForLocalDate(LocalDate.now())
 
@@ -843,15 +848,9 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
         lessonsList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="${LocalDate.now().toString()}T12:30:00+00:00", endTime="${LocalDate.now().toString()}T13:30:00+00:00", key=1157941107)
     }
     else {
-        runBlocking { requestMaker.login(null, null) }
-        lessonsListResponse = requestMaker.listLessons(getLocalDateObjectForSelected())
-        if (lessonsListResponse != null) {
-            if (lessonsListResponse!!.isLeft()) {
-                if (lessonsListResponse!!.leftOrNull() != null) {
-                    lessonsList.clear()
-                    lessonsList.addAll(lessonsListResponse!!.leftOrNull() ?: mutableListOf<Lesson>())
-                }
-            }
+        if (requestMaker.sessionId == null) {
+            Log.d("Slow", "Login")
+            runBlocking { requestMaker.login(null, null) }
         }
     }
 
@@ -864,6 +863,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                 val pageCount = 10000
                 val pagerState = rememberPagerState(pageCount = {pageCount}, initialPage = pageCount/2)
                 var middlePageDate = LocalDate.now()
+                var lastCurrentPage = pageCount/2
 
                 DatePickerButton(getLocalDateObjectForSelected, { showDatePicker = true }, "Date")
                 Spacer(Modifier.height(15.dp))
@@ -877,12 +877,44 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                     pagerState.requestScrollToPage(pageCount/2)
                 })
 
-                HorizontalPager(pagerState, modifier = Modifier.fillMaxSize()) {
+                HorizontalPager(pagerState, modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.Top) { page ->
                     Column(Modifier.padding(start = 5.dp, end = 5.dp).fillMaxSize()) {
-                        dateState.selectedDateMillis =
-                            getMillisForLocalDate(middlePageDate.plusDays(((pagerState.currentPage - pageCount / 2).toLong())))
-                        for (lesson in lessonsList) {
-                            val startTime = LocalDateTime.parse(lesson.startTime.substring(0, 19))
+                        var localLessonsListResponse by remember {
+                            mutableStateOf(
+                                lessonsListResponse
+                            )
+                        }
+                        val localLessons = remember { mutableStateListOf<Lesson>() }
+                        if (localLessons.isEmpty()) {
+                            localLessons.addAll(localLessons)
+                        }
+
+                        var isInitial by remember { mutableStateOf(true) }
+                        if (!(!MainActivity.isInstanceInitialised() || requestMaker.sessionId == "demo") && isInitial) {
+                            isInitial = false
+                            Log.d("Slow", "ListLessonsLocal")
+                            localLessonsListResponse =
+                                requestMaker.listLessons(middlePageDate.plusDays((page - pageCount / 2).toLong()))
+                            if (localLessonsListResponse != null) {
+                                if (localLessonsListResponse!!.isLeft()) {
+                                    if (localLessonsListResponse!!.leftOrNull() != null) {
+                                        localLessons.clear()
+                                        localLessons.addAll(
+                                            localLessonsListResponse!!.leftOrNull()
+                                                ?: mutableListOf<Lesson>()
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        if (pagerState.currentPage != lastCurrentPage) {
+                            dateState.selectedDateMillis = getMillisForLocalDate(middlePageDate.plusDays(((pagerState.currentPage - pageCount / 2).toLong()))) // TODO: page here used to be the currentPage from the datepicker but using page makes it worse, i think i need some combination of the two
+                            lastCurrentPage = pagerState.currentPage
+                        }
+                        for (lesson in localLessons) {
+                            val startTime =
+                                LocalDateTime.parse(lesson.startTime.substring(0, 19))
                             val endTime = LocalDateTime.parse(lesson.endTime.substring(0, 19))
                             Row {
                                 Column {
@@ -914,6 +946,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                             Spacer(Modifier.height(20.dp))
                         }
                     }
+
                 }
             }
         }
