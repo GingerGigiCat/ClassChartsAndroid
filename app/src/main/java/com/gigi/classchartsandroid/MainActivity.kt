@@ -1,5 +1,6 @@
 package com.gigi.classchartsandroid
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -17,10 +18,12 @@ import androidx.compose.foundation.gestures.DraggableState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,6 +34,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -95,6 +99,7 @@ import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -345,8 +350,8 @@ fun HomeworkList(requestMaker: RequestMaker, homeworksList: MutableList<Homework
 }
 
 @Composable
-fun DateDivider(date: LocalDate) {
-    Row(modifier = Modifier.padding(horizontal = 20.dp, vertical = 5.dp)) {
+fun DateDivider(date: LocalDate, modifier: Modifier = Modifier.padding(horizontal = 20.dp, vertical = 5.dp)) {
+    Row(modifier = modifier) {
         val today = LocalDate.now()
         var dateText = date.format(DateTimeFormatter.ofPattern("EEEE d MMMM"))
         if (today.minusDays(1) == date) { dateText = "Yesterday" }
@@ -510,12 +515,12 @@ fun LogInScreen(modifier:Modifier = Modifier, requestMaker: RequestMaker, naviga
 }
 
 @Composable
-fun DatePickerButton(getLocalDate: () -> LocalDate, onClick: () -> Unit, label: String = "Date of birth") {
+fun DatePickerButton(getLocalDate: () -> LocalDate, onClick: () -> Unit, label: String = "Date of birth", modifier: Modifier = Modifier) {
     OutlinedTextField(
         getLocalDate()
             .format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
         onValueChange = {},
-        Modifier
+        modifier
             .padding(start = 15.dp, end = 15.dp)
             .fillMaxWidth()
             .clickable(onClick = onClick),
@@ -827,6 +832,7 @@ fun getMillisForLocalDate(date: LocalDate): Long {
     return date.toEpochDay() * 24 * 60 * 60 * 1000
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
@@ -857,96 +863,128 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
 
     ClassChartsAndroidTheme {
         Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow, bottomBar = navBar) { innerPadding ->
-            Column(Modifier.padding(innerPadding).padding(start=10.dp, end=10.dp, top=10.dp).verticalScroll(rememberScrollState())) {
-                var leftSizeDp by remember { mutableStateOf(10.dp) }
-                val density = LocalDensity.current
-                val pageCount = 10000
-                val pagerState = rememberPagerState(pageCount = {pageCount}, initialPage = pageCount/2)
-                var middlePageDate = LocalDate.now()
-                var lastCurrentPage = pageCount/2
+            @SuppressLint("UnusedBoxWithConstraintsScope")
+            val box = BoxWithConstraints(Modifier.fillMaxSize()) {
+                val maxHeight: Dp = maxHeight
+                val maxWidth: Dp = maxWidth
+                var pageHeight by remember { mutableStateOf(maxHeight) }
+                pageHeight = maxHeight
+                print(pageHeight.toString())
+                Column(
+                    Modifier.padding(innerPadding).padding(start = 10.dp, end = 10.dp, top = 10.dp)
+                        .verticalScroll(rememberScrollState()).fillMaxSize()
+                ) {
+                    var leftSizeDp by remember { mutableStateOf(10.dp) }
+                    val density = LocalDensity.current
+                    val pageCount = 10000
+                    val pagerState =
+                        rememberPagerState(pageCount = { pageCount }, initialPage = pageCount / 2)
+                    var middlePageDate = LocalDate.now()
+                    var lastCurrentPage = pageCount / 2
 
-                DatePickerButton(getLocalDateObjectForSelected, { showDatePicker = true }, "Date")
-                Spacer(Modifier.height(15.dp))
-                if (showDatePicker) dateState = DoDatePicker(dateState,  {
-                    showDatePicker = false
-                    if (MainActivity.isInstanceInitialised()) {
-                        lessonsListResponse =
-                            requestMaker.listLessons(getLocalDateObjectForSelected())
-                    }
-                    middlePageDate = getLocalDateObjectForSelected()
-                    pagerState.requestScrollToPage(pageCount/2)
-                })
-
-                HorizontalPager(pagerState, modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.Top) { page ->
-                    Column(Modifier.padding(start = 5.dp, end = 5.dp).fillMaxSize()) {
-                        var localLessonsListResponse by remember {
-                            mutableStateOf(
-                                lessonsListResponse
-                            )
+                    DatePickerButton(
+                        getLocalDateObjectForSelected,
+                        { showDatePicker = true },
+                        "Date",
+                        Modifier.onGloballyPositioned({pageHeight = pageHeight - with(density) {it.size.height.toDp()}
+                        Log.d("Height", with(density) {it.size.height.toDp()}.toString())
+                        Log.d("Heightt", (pageHeight).toString())})
+                    )
+                    Spacer(Modifier.height(8.dp).onGloballyPositioned({pageHeight = pageHeight-  with(density) {it.size.height.toDp()}}))
+                    if (showDatePicker) dateState = DoDatePicker(dateState, {
+                        showDatePicker = false
+                        if (MainActivity.isInstanceInitialised()) {
+                            lessonsListResponse = requestMaker.listLessons(getLocalDateObjectForSelected())
                         }
-                        val localLessons = remember { mutableStateListOf<Lesson>() }
-                        if (localLessons.isEmpty()) {
-                            localLessons.addAll(localLessons)
-                        }
+                        middlePageDate = getLocalDateObjectForSelected()
+                        pagerState.requestScrollToPage(pageCount / 2)
+                    })
+                    Log.d("Height", pageHeight.toString())
+                    HorizontalPager(
+                        pagerState,
+                        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = pageHeight),
+                        verticalAlignment = Alignment.Top,
+                        pageSize = PageSize.Fill
+                    ) { page ->
+                        Column(Modifier.padding(start = 5.dp, end = 5.dp).fillMaxSize()) {
+                            var localLessonsListResponse by remember {
+                                mutableStateOf(
+                                    lessonsListResponse
+                                )
+                            }
+                            val localLessons = remember { mutableStateListOf<Lesson>() }
+                            if (localLessons.isEmpty()) {
+                                localLessons.addAll(localLessons)
+                            }
 
-                        var isInitial by remember { mutableStateOf(true) }
-                        if (!(!MainActivity.isInstanceInitialised() || requestMaker.sessionId == "demo") && isInitial) {
-                            isInitial = false
-                            Log.d("Slow", "ListLessonsLocal")
-                            localLessonsListResponse =
-                                requestMaker.listLessons(middlePageDate.plusDays((page - pageCount / 2).toLong()))
-                            if (localLessonsListResponse != null) {
-                                if (localLessonsListResponse!!.isLeft()) {
-                                    if (localLessonsListResponse!!.leftOrNull() != null) {
-                                        localLessons.clear()
-                                        localLessons.addAll(
-                                            localLessonsListResponse!!.leftOrNull()
-                                                ?: mutableListOf<Lesson>()
+                            var isInitial by remember { mutableStateOf(true) }
+                            if (!(!MainActivity.isInstanceInitialised() || requestMaker.sessionId == "demo") && isInitial) {
+                                isInitial = false
+                                Log.d("Slow", "ListLessonsLocal")
+                                localLessonsListResponse =
+                                    requestMaker.listLessons(middlePageDate.plusDays((page - pageCount / 2).toLong()))
+                                if (localLessonsListResponse != null) {
+                                    if (localLessonsListResponse!!.isLeft()) {
+                                        if (localLessonsListResponse!!.leftOrNull() != null) {
+                                            localLessons.clear()
+                                            localLessons.addAll(
+                                                localLessonsListResponse!!.leftOrNull()
+                                                    ?: mutableListOf<Lesson>()
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (pagerState.currentPage != lastCurrentPage) {
+                                dateState.selectedDateMillis =
+                                    getMillisForLocalDate(middlePageDate.plusDays(((pagerState.currentPage - pageCount / 2).toLong()))) // TODO: page here used to be the currentPage from the datepicker but using page makes it worse, i think i need some combination of the two
+                                lastCurrentPage = pagerState.currentPage
+                            }
+
+                            DateDivider(middlePageDate.plusDays(((pagerState.currentPage - pageCount / 2).toLong())), Modifier.padding(horizontal = 0.dp, vertical = 5.dp))
+                            Spacer(Modifier.height(8.dp))
+
+                            if (localLessons.size == 0) {
+                                Text("No lessons", color = MaterialTheme.colorScheme.onSurface)
+                            }
+
+                            for (lesson in localLessons) {
+                                val startTime =
+                                    LocalDateTime.parse(lesson.startTime.substring(0, 19))
+                                val endTime = LocalDateTime.parse(lesson.endTime.substring(0, 19))
+                                Row {
+                                    Column {
+                                        Text(lesson.periodNumber)
+                                        Text(startTime.format(DateTimeFormatter.ofPattern("HH:mm")))
+                                        Text(
+                                            LocalDateTime.parse(lesson.endTime.substring(0, 19))
+                                                .format(DateTimeFormatter.ofPattern("HH:mm"))
                                         )
                                     }
-                                }
-                            }
-                        }
-
-                        if (pagerState.currentPage != lastCurrentPage) {
-                            dateState.selectedDateMillis = getMillisForLocalDate(middlePageDate.plusDays(((pagerState.currentPage - pageCount / 2).toLong()))) // TODO: page here used to be the currentPage from the datepicker but using page makes it worse, i think i need some combination of the two
-                            lastCurrentPage = pagerState.currentPage
-                        }
-                        for (lesson in localLessons) {
-                            val startTime =
-                                LocalDateTime.parse(lesson.startTime.substring(0, 19))
-                            val endTime = LocalDateTime.parse(lesson.endTime.substring(0, 19))
-                            Row {
-                                Column {
-                                    Text(lesson.periodNumber)
-                                    Text(startTime.format(DateTimeFormatter.ofPattern("HH:mm")))
-                                    Text(
-                                        LocalDateTime.parse(lesson.endTime.substring(0, 19))
-                                            .format(DateTimeFormatter.ofPattern("HH:mm"))
-                                    )
-                                }
-                                Spacer(Modifier.width(15.dp))
-                                var cardColors = CardDefaults.cardColors()
-                                if (startTime <= LocalDateTime.now() && LocalDateTime.now() <= endTime) {
-                                    cardColors = CardColors(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.onPrimaryContainer,
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                                Card(Modifier.fillMaxWidth(), colors = cardColors) {
-                                    Column(Modifier.padding(10.dp)) {
-                                        Text("${lesson.subjectName} - ${lesson.lessonName}")
-                                        Text(lesson.teacherName)
-                                        Text(lesson.roomName)
+                                    Spacer(Modifier.width(15.dp))
+                                    var cardColors = CardDefaults.cardColors()
+                                    if (startTime <= LocalDateTime.now() && LocalDateTime.now() <= endTime) {
+                                        cardColors = CardColors(
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            MaterialTheme.colorScheme.onPrimaryContainer,
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                    Card(Modifier.fillMaxWidth(), colors = cardColors) {
+                                        Column(Modifier.padding(10.dp)) {
+                                            Text("${lesson.subjectName} - ${lesson.lessonName}")
+                                            Text(lesson.teacherName)
+                                            Text(lesson.roomName)
+                                        }
                                     }
                                 }
+                                Spacer(Modifier.height(20.dp))
                             }
-                            Spacer(Modifier.height(20.dp))
                         }
-                    }
 
+                    }
                 }
             }
         }
