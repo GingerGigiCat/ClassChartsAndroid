@@ -14,10 +14,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.DraggableState
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -28,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,7 +36,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
@@ -61,7 +55,6 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,8 +62,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -80,16 +71,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -104,24 +90,20 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
-import androidx.navigation.ActivityNavigator
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import arrow.core.Either
-import arrow.core.left
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
-import kotlin.math.round
 
 // Features to add:
 // Tickable homeworks DONE but make it work on the actual homework page
@@ -865,17 +847,15 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
         Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow, bottomBar = navBar) { innerPadding ->
             @SuppressLint("UnusedBoxWithConstraintsScope")
             val box = BoxWithConstraints(Modifier.fillMaxSize()) {
+                val density = LocalDensity.current
                 val maxHeight: Dp = maxHeight
-                val maxWidth: Dp = maxWidth
-                var pageHeight by remember { mutableStateOf(maxHeight) }
-                pageHeight = maxHeight
-                print(pageHeight.toString())
+                val buttonHeight = remember { mutableStateOf(0.dp) }
+
                 Column(
                     Modifier.padding(innerPadding).padding(start = 10.dp, end = 10.dp, top = 10.dp)
                         .verticalScroll(rememberScrollState()).fillMaxSize()
                 ) {
                     var leftSizeDp by remember { mutableStateOf(10.dp) }
-                    val density = LocalDensity.current
                     val pageCount = 10000
                     val pagerState =
                         rememberPagerState(pageCount = { pageCount }, initialPage = pageCount / 2)
@@ -886,11 +866,9 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                         getLocalDateObjectForSelected,
                         { showDatePicker = true },
                         "Date",
-                        Modifier.onGloballyPositioned({pageHeight = pageHeight - with(density) {it.size.height.toDp()}
-                        Log.d("Height", with(density) {it.size.height.toDp()}.toString())
-                        Log.d("Heightt", (pageHeight).toString())})
+                        Modifier.onGloballyPositioned({buttonHeight.value = with(density) {it.size.height.toDp()}})
                     )
-                    Spacer(Modifier.height(8.dp).onGloballyPositioned({pageHeight = pageHeight-  with(density) {it.size.height.toDp()}}))
+                    Spacer(Modifier.height(8.dp))
                     if (showDatePicker) dateState = DoDatePicker(dateState, {
                         showDatePicker = false
                         if (MainActivity.isInstanceInitialised()) {
@@ -899,10 +877,10 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                         middlePageDate = getLocalDateObjectForSelected()
                         pagerState.requestScrollToPage(pageCount / 2)
                     })
-                    Log.d("Height", pageHeight.toString())
+                    Log.d("Height", buttonHeight.toString())
                     HorizontalPager(
                         pagerState,
-                        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = pageHeight),
+                        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = maxHeight - buttonHeight.value*3 - 8.dp),
                         verticalAlignment = Alignment.Top,
                         pageSize = PageSize.Fill
                     ) { page ->
@@ -918,7 +896,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                             }
 
                             var isInitial by remember { mutableStateOf(true) }
-                            if (!(!MainActivity.isInstanceInitialised() || requestMaker.sessionId == "demo") && isInitial) {
+                            if (!(!MainActivity.isInstanceInitialised()) && isInitial) {
                                 isInitial = false
                                 Log.d("Slow", "ListLessonsLocal")
                                 localLessonsListResponse =
