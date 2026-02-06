@@ -8,11 +8,25 @@ import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.toLowerCase
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.room.ColumnInfo
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Entity
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy.Companion.REPLACE
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.Update
 import arrow.core.Either
+import com.gigi.classchartsandroid.MainActivity.HomeworkContentObject
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -74,6 +88,19 @@ data class Lesson(
     val key: Int
 )
 
+@Dao
+interface HomeworkDao {
+    @Query("SELECT * FROM homeworkcontentobject")
+    fun getAll(): MutableList<MainActivity.HomeworkContentObject>
+
+    @Insert(onConflict = REPLACE)
+    fun insertAll(homeworks: MutableList<MainActivity.HomeworkContentObject>)
+}
+
+@Database(entities = [MainActivity.HomeworkContentObject::class], version = 1)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun homeworkDao(): HomeworkDao
+}
 
 open class ErrorType
 
@@ -97,6 +124,15 @@ class RequestMaker {
 
     val STUDENT_ID = stringPreferencesKey("student_id")
     val STUDENT_DOB = stringPreferencesKey("student_dob")
+    val LOGIN_SUCCESS = booleanPreferencesKey("login_success")
+
+    val roomDb = Room.databaseBuilder(
+        MainActivity.instance,
+        AppDatabase::class.java,
+        "maindb")
+        .allowMainThreadQueries()
+        .build()
+    val homeworkDao = roomDb.homeworkDao()
 
     fun idFlow(): Flow<String> = MainActivity.instance.appDataStore.data.map { preferences ->
         preferences[STUDENT_ID] ?: ""
@@ -104,6 +140,10 @@ class RequestMaker {
 
     fun dobFlow(): Flow<String> = MainActivity.instance.appDataStore.data.map { preferences ->
         preferences[STUDENT_DOB] ?: ""
+    }
+
+    fun successFlow(): Flow<Boolean> = MainActivity.instance.appDataStore.data.map { preferences ->
+        preferences[LOGIN_SUCCESS] ?: false
     }
 
     suspend fun writeId(id: String) {
@@ -120,6 +160,14 @@ class RequestMaker {
             it.toMutablePreferences().also { preferences ->
                 preferences[STUDENT_DOB] = dob
                 studentDob = dob
+            }
+        }
+    }
+
+    suspend fun writeSuceess(success: Boolean) {
+        MainActivity.instance.appDataStore.updateData {
+            it.toMutablePreferences().also { preferences ->
+                preferences[LOGIN_SUCCESS] = success
             }
         }
     }
@@ -216,6 +264,38 @@ class RequestMaker {
         else return false
     }
 
+    fun homeworkContentToNormalHomework(homeworkContentObj: HomeworkContentObject, linkStyle: TextLinkStyles): Homework {
+        return Homework(
+            title = homeworkContentObj.title,
+            complete = homeworkContentObj.complete,
+            teacher = homeworkContentObj.teacher,
+            subject = homeworkContentObj.subject,
+            completionTime = homeworkContentObj.completionTime,
+            body = AnnotatedString.fromHtml(homeworkContentObj.body, linkStyles = linkStyle),
+            rawBody = homeworkContentObj.body,
+            issueDate = LocalDate.parse(homeworkContentObj.issueDate),
+            dueDate = LocalDate.parse(homeworkContentObj.dueDate),
+            id = homeworkContentObj.id,
+            attachments = Gson().fromJson(homeworkContentObj.attachments,
+                object: TypeToken<MutableList<Attachment>>() {}.type)
+        )
+    }
+
+    fun normalHomeworkToHomeworkContent(homework: Homework): HomeworkContentObject {
+        return HomeworkContentObject(
+            title = homework.title,
+            complete = homework.complete,
+            teacher = homework.teacher,
+            subject = homework.subject,
+            completionTime = homework.completionTime,
+            body = homework.rawBody!!,
+            issueDate = homework.issueDate.toString(),
+            dueDate = homework.dueDate.toString(),
+            id = homework.id!!,
+            attachments = Gson().toJson(homework.attachments)
+        )
+    }
+
     fun studentPing(): Boolean {
         val requestBody = FormBody.Builder()
             .add("include_data", "true")
@@ -306,8 +386,14 @@ class RequestMaker {
                 rawBody=rawText, issueDate=LocalDate.now().minusDays(6), dueDate=LocalDate.now().plusDays(4), id="736253715", attachments=mutableListOf())
         }
         else {
+            val gettedRawHomeworksList = homeworkDao.getAll()
+            for (homeworkContent in gettedRawHomeworksList) {
+                homeworksList += homeworkContentToNormalHomework(homeworkContent, linkStyle)
+            }
+
             val homeworks = getHomeworks()
             if (homeworks != null) {
+                homeworksList.clear()
                 for (i in homeworks) {
                     val isComplete =
                         yesnoToTruefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
@@ -352,6 +438,11 @@ class RequestMaker {
                         )
                     }
                 }
+                val rawHomeworksList = mutableListOf<HomeworkContentObject>()
+                for (homework in homeworksList) {
+                    rawHomeworksList += normalHomeworkToHomeworkContent(homework)
+                }
+                homeworkDao.insertAll(rawHomeworksList)
             }
         }
     }
@@ -373,7 +464,7 @@ class RequestMaker {
             .build()
 
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
+            if (!response.isSuccessful) return null //throw _root_ide_package_.okio.IOException("Unexpected code $response")
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             Log.d("HomeworkData", jsonResponse.toString())
             try {

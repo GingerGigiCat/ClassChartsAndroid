@@ -94,6 +94,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import arrow.core.Either
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 import com.google.gson.Gson
@@ -122,7 +125,8 @@ import kotlin.math.max
 // Login with microsoft??
 // Make the timetable show free periods?
 // User addable tasks
-// Offline mode
+// Offline mode // TODO: THIS
+
 
 val Context.appDataStore: DataStore<Preferences> by preferencesDataStore("settings")
 
@@ -133,17 +137,18 @@ class MainActivity : ComponentActivity() {
     object HomeworkListObject : ScreenObject()
 
     @Serializable
+    @Entity
     data class HomeworkContentObject(
-        val title: String,
-        val complete: Boolean,
-        val teacher: String,
-        val subject: String,
-        val body: String,
-        val issueDate: String = "",
-        val dueDate: String = "",
-        val id: String = "",
-        val completionTime: String,
-        val attachments: String
+        @ColumnInfo("title") val title: String,
+        @ColumnInfo("complete") val complete: Boolean,
+        @ColumnInfo("teacher") val teacher: String,
+        @ColumnInfo("subject") val subject: String,
+        @ColumnInfo("body") val body: String,
+        @ColumnInfo("issue_date") val issueDate: String = "",
+        @ColumnInfo("due_date") val dueDate: String = "",
+        @PrimaryKey val id: String = "",
+        @ColumnInfo("completion_time") val completionTime: String,
+        @ColumnInfo("attachments") val attachments: String
     ) : ScreenObject()
 
     @Serializable
@@ -172,7 +177,6 @@ class MainActivity : ComponentActivity() {
         StrictMode.setThreadPolicy(
             StrictMode.ThreadPolicy.Builder().permitAll().build()
         )
-
         val requestMaker = RequestMaker()
 
         //val homeworksList: MutableList<Homework> = mutableListOf()
@@ -253,18 +257,7 @@ class MainActivity : ComponentActivity() {
                                             homework = homework, compact = false,
                                             navigate = {
                                                 navController.navigate(
-                                                    HomeworkContentObject(
-                                                        title = homework.title,
-                                                        complete = homework.complete,
-                                                        teacher = homework.teacher,
-                                                        subject = homework.subject,
-                                                        completionTime = homework.completionTime,
-                                                        body = homework.rawBody!!,
-                                                        issueDate = homework.issueDate.toString(),
-                                                        dueDate = homework.dueDate.toString(),
-                                                        id = homework.id!!,
-                                                        attachments = Gson().toJson(homework.attachments)
-                                                    )
+                                                    requestMaker.normalHomeworkToHomeworkContent(homework)
                                                 )
                                             },
                                             requestMaker = requestMaker,
@@ -280,20 +273,7 @@ class MainActivity : ComponentActivity() {
                 }
                 composable<HomeworkContentObject> { backStackEntry ->
                     val homeworkContentObj: HomeworkContentObject = backStackEntry.toRoute()
-                    val homework: Homework = Homework(
-                        title = homeworkContentObj.title,
-                        complete = homeworkContentObj.complete,
-                        teacher = homeworkContentObj.teacher,
-                        subject = homeworkContentObj.subject,
-                        completionTime = homeworkContentObj.completionTime,
-                        body = AnnotatedString.fromHtml(homeworkContentObj.body, linkStyles = linkStyle),
-                        rawBody = homeworkContentObj.body,
-                        issueDate = LocalDate.parse(homeworkContentObj.issueDate),
-                        dueDate = LocalDate.parse(homeworkContentObj.dueDate),
-                        id = homeworkContentObj.id,
-                        attachments = Gson().fromJson(homeworkContentObj.attachments,
-                            object: TypeToken<MutableList<Attachment>>() {}.type)
-                    )
+                    val homework: Homework = requestMaker.homeworkContentToNormalHomework(homeworkContentObj, linkStyle)
                     HomeworkContent(homework)
                 }
                 composable<LoginScreenObject> { backStackEntry ->
