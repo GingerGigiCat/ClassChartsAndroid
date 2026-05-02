@@ -129,24 +129,20 @@ class RequestMaker {
         var theCookies: List<Cookie> = listOf<Cookie>()
 
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
-            return listOf(Cookie.Builder()
+            val sendCookies = listOf(Cookie.Builder()
                 .name("student_session_credentials")
                 .value("%7B%22remember_me%22%3Atrue%2C%22session_id%22%3A%22$sessionId%22%7D")
                 .expiresAt(0)
-                .domain("classcharts.com")
+                .domain("www.classcharts.com")
                 .build()
-            )
-            //Log.d("mmmcookies", theCookies.toString())
-            //return theCookies
+            ) + theCookies
+            Log.d("mmmcookies", sendCookies.toString())
+            return sendCookies
         }
 
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
             Log.d("newcookies", cookies.toString())
             theCookies = cookies
-        }
-
-        fun updateSessionID() {
-            theCookies
         }
     }
 
@@ -297,7 +293,7 @@ class RequestMaker {
         )
     }
 
-    fun studentPing(): Boolean { // Updates cookies
+    fun studentPing(): Boolean { // Updates cookies maybe
         val requestBody = FormBody.Builder()
             .add("include_data", "true")
             .build()
@@ -461,18 +457,30 @@ class RequestMaker {
 
         val request = Request.Builder()
             .url(url)
-            .addHeader("Authorization", "Basic $sessionId")
+            .header("Authorization", "Basic $sessionId")
             .build()
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null //throw _root_ide_package_.okio.IOException("Unexpected code $response")
+        val doTheThing: () -> JsonArray? = { client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) null //throw _root_ide_package_.okio.IOException("Unexpected code $response")
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             Log.d("HomeworkData", jsonResponse.toString())
             try {
-                return jsonResponse.getAsJsonArray("data")
-            }
-            catch (e: Error) {
+                jsonResponse.getAsJsonArray("data")
+            } catch (e: Error) {
                 Log.e("uh oh in getHomeworks", e.toString())
+                null
+            }
+        }}
+
+        try {
+            return doTheThing()
+        } catch (e: Error) {
+            Log.i("SolvingGetHomeworksError", e.toString())
+            try {
+                runBlocking{login(null, null)}
+                return doTheThing()
+            } catch (e: Error) {
+                Log.e("GetHomeworksError", e.toString())
                 return null
             }
         }
@@ -513,7 +521,7 @@ class RequestMaker {
 
             val request = Request.Builder()
                 .url(url)
-                .addHeader("Authorization", "Basic $sessionId")
+                .header("Authorization", "Basic $sessionId")
                 .build()
 
             client.newCall(request).execute().use { response ->
