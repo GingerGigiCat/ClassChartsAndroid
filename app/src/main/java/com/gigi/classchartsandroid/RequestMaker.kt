@@ -32,7 +32,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import okhttp3.Cookie
+import okhttp3.CookieJar
 import okhttp3.FormBody
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -91,13 +94,13 @@ data class Lesson(
 @Dao
 interface HomeworkDao {
     @Query("SELECT * FROM homeworkcontentobject")
-    fun getAll(): MutableList<MainActivity.HomeworkContentObject>
+    fun getAll(): MutableList<HomeworkContentObject>
 
     @Insert(onConflict = REPLACE)
-    fun insertAll(homeworks: MutableList<MainActivity.HomeworkContentObject>)
+    fun insertAll(homeworks: MutableList<HomeworkContentObject>)
 }
 
-@Database(entities = [MainActivity.HomeworkContentObject::class], version = 1)
+@Database(entities = [HomeworkContentObject::class], version = 1)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun homeworkDao(): HomeworkDao
 }
@@ -112,7 +115,7 @@ class ErrorWaiting : ErrorType()
 
 
 class RequestMaker {
-    private val client = OkHttpClient()
+
     val gson = Gson()
     var sessionId: String? = null
     var studentId: String? = null
@@ -121,6 +124,35 @@ class RequestMaker {
     var name: String = ""
     var f_name: String = ""
     var l_name: String = ""
+
+    val cookieJar = object: CookieJar {
+        var theCookies: List<Cookie> = listOf<Cookie>()
+
+        override fun loadForRequest(url: HttpUrl): List<Cookie> {
+            return listOf(Cookie.Builder()
+                .name("student_session_credentials")
+                .value("%7B%22remember_me%22%3Atrue%2C%22session_id%22%3A%22$sessionId%22%7D")
+                .expiresAt(0)
+                .domain("classcharts.com")
+                .build()
+            )
+            //Log.d("mmmcookies", theCookies.toString())
+            //return theCookies
+        }
+
+        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+            Log.d("newcookies", cookies.toString())
+            theCookies = cookies
+        }
+
+        fun updateSessionID() {
+            theCookies
+        }
+    }
+
+    private val client = OkHttpClient.Builder()
+        .cookieJar(cookieJar)
+        .build()
 
     val STUDENT_ID = stringPreferencesKey("student_id")
     val STUDENT_DOB = stringPreferencesKey("student_dob")
@@ -176,39 +208,6 @@ class RequestMaker {
 
     }
 
-    constructor(id: String?, dob: String?) {
-        var id: String = id?: runBlocking { idFlow().first() }
-        var dob: String = dob?: runBlocking { dobFlow().first() }
-
-        val requestBody = FormBody.Builder()
-            .add("code", id)
-            .add("remember", "true")
-            .add("recaptcha-session_id", "no-session_id-available")
-            .add("dob", dob)
-            .build()
-
-        val request = Request.Builder()
-            .url("https://www.classcharts.com/apiv2student/login")
-            .post(requestBody)
-            .build()
-
-
-        client.newCall(request).execute().use { response -> // was an Error here
-            if (!response.isSuccessful) print(response)//throw _root_ide_package_.okio.IOException("Unexpected code $response")
-            studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
-            sessionId = studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
-            runBlocking {
-                writeId(id)
-                writeDob(dob)
-            }
-        }
-    }
-
-    constructor(session_id: String) {
-        sessionId = session_id
-
-        if (!studentPing()) throw IOException("Ping no work, check internet? Or reauth")
-    }
 
     suspend fun login(id: String? = null, dob: String? = null): ErrorType {
         var id: String = id?: ""
@@ -232,7 +231,7 @@ class RequestMaker {
         val requestBody = FormBody.Builder()
             .add("code", id)
             .add("remember", "true")
-            .add("recaptcha-session_id", "no-session_id-available")
+            .add("recaptcha-token", "no-token-available")
             .add("dob", dob)
             .build()
 
@@ -245,6 +244,7 @@ class RequestMaker {
         client.newCall(request).execute().use { response -> // was an Error here
             if (!response.isSuccessful) return ErrorNetwork() //throw _root_ide_package_.okio.IOException("Unexpected code $response")
             studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            Log.d("RealLoginResponse", studentLoginResponse.toString())
             try {
                 sessionId =
                     studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
@@ -255,6 +255,7 @@ class RequestMaker {
             writeId(id)
             writeDob(dob)
         }
+        studentPing()
         return Success()
     }
 
@@ -296,7 +297,7 @@ class RequestMaker {
         )
     }
 
-    fun studentPing(): Boolean {
+    fun studentPing(): Boolean { // Updates cookies
         val requestBody = FormBody.Builder()
             .add("include_data", "true")
             .build()
@@ -311,7 +312,7 @@ class RequestMaker {
             if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             try {
-                sessionId = jsonResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
+                //sessionId = jsonResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
                 // studentId = jsonResponse?.getAsJsonObject("data")?.getAsJsonObject("user")?.get("id")?.asString
                 return true
             }
