@@ -43,6 +43,9 @@ import okio.IOException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
+import java.util.Timer
+import kotlin.concurrent.schedule
+import kotlin.concurrent.timer
 
 fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // borrowed from stackoverflow, converts json to a kotlin friendly object
     when (val value = this[it])
@@ -124,6 +127,7 @@ class RequestMaker {
     var name: String = ""
     var f_name: String = ""
     var l_name: String = ""
+    val timer = Timer()
 
     val cookieJar = object: CookieJar {
         var theCookies: List<Cookie> = listOf<Cookie>()
@@ -251,7 +255,7 @@ class RequestMaker {
             writeId(id)
             writeDob(dob)
         }
-        studentPing()
+
         return Success()
     }
 
@@ -460,6 +464,8 @@ class RequestMaker {
             .header("Authorization", "Basic $sessionId")
             .build()
 
+        runBlocking{login("", "")}
+
         val doTheThing: () -> JsonArray? = { client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) null //throw _root_ide_package_.okio.IOException("Unexpected code $response")
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
@@ -475,9 +481,9 @@ class RequestMaker {
         try {
             return doTheThing()
         } catch (e: Error) {
-            Log.i("SolvingGetHomeworksError", e.toString())
+            Log.i("RetryingGetHomeworksError", e.toString())
             try {
-                runBlocking{login(null, null)}
+                runBlocking{login("", "")}
                 return doTheThing()
             } catch (e: Error) {
                 Log.e("GetHomeworksError", e.toString())
@@ -523,6 +529,8 @@ class RequestMaker {
                 .url(url)
                 .header("Authorization", "Basic $sessionId")
                 .build()
+
+            runBlocking { login("", "") }
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return Either.Right(ErrorNetwork())
