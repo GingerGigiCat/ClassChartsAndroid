@@ -35,17 +35,19 @@ Do note that ticking homeworks, changing the filtering of ticked homeworks, and 
 
 ## Tech notes
 
-This app (currently) has so many ui thread blocking things, which is bad, and has network on main thread which i have to bypass to let the app even run. There is currently some amount but minimal error handling, so it is very likely it can crash or give no output if something weird happens internally. This is my first time ever using kotlin and jetpack compose, so make of that what you will
+This app (currently) has so many ui thread blocking things, which is bad, and has network on main thread which i have to bypass to let the app even run. There is currently not much error handling (but I'm in the process of adding more), so it is likely it can crash or give no output if something weird happens internally.
+
+This is my first time ever using kotlin and jetpack compose, so make of that what you will
 
 Here is my todo list for this app, in no particular order:
 
 Make ticking a homework work on the actual homework page
 
-Add swiping between timetable days
+~~Add swiping between timetable days~~ done!
 
-Ability to add a note on homework (needs a database)
+Ability to add a note on homework (needs a database - in the process of adding a database)
 
-Offline mode (needs a database)
+Offline mode (needs a database - in the process of adding a database)
 
 Shade incomplete homeworks a different colour in the list
 
