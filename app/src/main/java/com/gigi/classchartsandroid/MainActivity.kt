@@ -186,6 +186,7 @@ class MainActivity : ComponentActivity() {
             var studentDob by remember { mutableStateOf(requestMaker.studentDob) }
             var loginResponse by remember { mutableStateOf(runBlocking { requestMaker.login(studentId, studentDob) }) }
             val homeworksList = remember { mutableStateListOf<Homework>() }
+            var updateHomeworksColumnNeeded by remember { mutableStateOf(false) }
             var showCompletedHomeworksChecked by remember { mutableStateOf(true) }
             val linkStyle = TextLinkStyles(
                 style = SpanStyle(
@@ -245,7 +246,24 @@ class MainActivity : ComponentActivity() {
                                 ShowCompletedHomeworksToggle(showCompletedHomeworksChecked, {showCompletedHomeworksChecked = it})
                                 val colorScheme = MaterialTheme.colorScheme
                                 LazyColumn {
-                                    requestMaker.refreshHomeworkList(homeworksList, showCompletedHomeworksChecked, linkStyle, colorScheme)
+                                    if (updateHomeworksColumnNeeded) {
+                                        updateHomeworksColumnNeeded = false
+                                        Log.d("HomeworksListUpdate", "Updating the homework list due to db change")
+                                        val rawHomeworksList = requestMaker.homeworkDao.getAll()
+                                        homeworksList.clear()
+                                        for (rawHomework in rawHomeworksList) {
+                                            homeworksList += requestMaker.homeworkContentToNormalHomework(rawHomework, linkStyle)
+                                        }
+                                    }
+                                    else {
+                                        val rawHomeworksList = requestMaker.homeworkDao.getAll()
+                                        homeworksList.clear()
+                                        for (rawHomework in rawHomeworksList) {
+                                            homeworksList += requestMaker.homeworkContentToNormalHomework(rawHomework, linkStyle)
+                                        }
+                                        requestMaker.refreshHomeworkList(showCompletedHomeworksChecked, linkStyle, colorScheme, {updateHomeworksColumnNeeded = true})
+                                    }
+
                                     itemsIndexed(
                                         items = homeworksList,
                                         key = {index, homework -> homework.id!! }
@@ -304,7 +322,7 @@ fun HomeworkList(requestMaker: RequestMaker, homeworksList: MutableList<Homework
         )
     )
 
-    requestMaker.refreshHomeworkList(homeworksList, onlyIncomplete, linkStyle, MaterialTheme.colorScheme)
+    requestMaker.refreshHomeworkList(onlyIncomplete, linkStyle, MaterialTheme.colorScheme)
 
     for (homework in homeworksList) {
         HomeworkCard(homework = homework, compact = false, requestMaker = requestMaker)
@@ -342,7 +360,6 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                             {
                                 requestMaker?.tickHomework(homework.id!!)
                                 requestMaker?.refreshHomeworkList(
-                                    homeworksList,
                                     onlyIncomplete,
                                     linkStyle!!,
                                     colorScheme
@@ -689,7 +706,7 @@ fun HomeworkContent(homework: Homework, requestMaker: RequestMaker? = null, link
                     Checkbox(checked = homework.complete, onCheckedChange = 
                         { 
                             requestMaker?.tickHomework(homework.id!!)
-                            requestMaker?.refreshHomeworkList(homeworksList!!, onlyIncomplete, linkStyle!!, colorScheme)
+                            requestMaker?.refreshHomeworkList(onlyIncomplete, linkStyle!!, colorScheme)
                         },
                         modifier = Modifier.align(Alignment.CenterVertically))
                     Spacer(modifier = Modifier.width(10.dp))

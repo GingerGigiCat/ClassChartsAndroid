@@ -2,6 +2,8 @@ package com.gigi.classchartsandroid
 import android.util.Log
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -25,6 +27,7 @@ import arrow.core.Either
 import com.gigi.classchartsandroid.MainActivity.HomeworkContentObject
 import com.google.gson.Gson
 import com.google.gson.JsonArray
+import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
@@ -44,8 +47,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 import java.util.Timer
+import java.util.UUID
 import kotlin.concurrent.schedule
 import kotlin.concurrent.timer
+import kotlin.uuid.Uuid
 
 fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // borrowed from stackoverflow, converts json to a kotlin friendly object
     when (val value = this[it])
@@ -96,7 +101,7 @@ data class Lesson(
 
 @Dao
 interface HomeworkDao {
-    @Query("SELECT * FROM homeworkcontentobject")
+    @Query("SELECT * FROM homeworkcontentobject ORDER BY due_date ASC")
     fun getAll(): MutableList<HomeworkContentObject>
 
     @Insert(onConflict = REPLACE)
@@ -323,8 +328,8 @@ class RequestMaker {
     }
 
 
-    fun refreshHomeworkList(homeworksList: MutableList<Homework>, onlyIncomplete: Boolean, linkStyle: TextLinkStyles, colorScheme: ColorScheme) {
-        homeworksList.clear()
+    fun refreshHomeworkList(onlyIncomplete: Boolean, linkStyle: TextLinkStyles, colorScheme: ColorScheme, onFinish: () -> Unit = {}) {
+        val homeworksList = mutableListOf<Homework>()
         if (sessionId == "demo") {
             homeworksList += Homework(
                 title = "Modal Jazz Improvisation",
@@ -387,54 +392,51 @@ class RequestMaker {
                 rawBody=rawText, issueDate=LocalDate.now().minusDays(6), dueDate=LocalDate.now().plusDays(4), id="736253715", attachments=mutableListOf())
         }
         else {
-            val gettedRawHomeworksList = homeworkDao.getAll()
-            for (homeworkContent in gettedRawHomeworksList) {
-                homeworksList += homeworkContentToNormalHomework(homeworkContent, linkStyle)
-            }
-
             val homeworks = getHomeworks()
             if (homeworks != null) {
-                homeworksList.clear()
                 for (i in homeworks) {
                     val isComplete =
                         yesnoToTruefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
-                    if (!onlyIncomplete || !isComplete) {
+                    if (true) { //(Want everything in the database) //if (!onlyIncomplete || !isComplete) {
                         var attachments: MutableList<Attachment> = mutableListOf()
 
                         for (i in i.asJsonObject.getAsJsonArray("validated_links")) {
                             attachments += Attachment(
-                                name = i.asJsonObject.get("link")!!.asString,
-                                link = i.asJsonObject.get("link")!!.asString,
+                                name = i.asJsonObject.get("link").asString?: "unknown-site.com",
+                                link = i.asJsonObject.get("link").asString?: "https://example.com",
                                 isFile = false
                             )
                         }
 
                         for (i in i.asJsonObject.getAsJsonArray("validated_attachments")) {
                             attachments += Attachment(
-                                name = i.asJsonObject.get("filename")!!.asString,
-                                link = i.asJsonObject.get("file")!!.asString,
+                                name = i.asJsonObject.get("filename").asString?: "UnknownFile",
+                                link = i.asJsonObject.get("file").asString?: "https://example.com",
                                 isFile = true
                             )
                         }
 
                         homeworksList += Homework(
-                            title = i.asJsonObject.get("title")!!.asString,
+                            title = i.asJsonObject.get("title").asString?: "",
                             complete = isComplete,
-                            teacher = i.asJsonObject.get("teacher")!!.asString,
-                            subject = i.asJsonObject.get("subject")!!.asString,
-                            completionTime = "${i.asJsonObject.get("completion_time_value")!!.asString} ${
-                                i.asJsonObject.get(
-                                    "completion_time_unit"
-                                )!!.asString
+                            teacher = i.asJsonObject.get("teacher").asString?: "",
+                            subject = (if (!(i.asJsonObject.get("subject") is JsonNull)) {i.asJsonObject.get("subject").asString} else ""),
+                            completionTime = "${i.asJsonObject.get("completion_time_value").asString?:""} ${
+                                if ((i.asJsonObject.get("completion_time_value").asString ?: "") != "") {
+                                    i.asJsonObject.get(
+                                        "completion_time_unit"
+                                    )!!.asString
+                                }
+                                else { "" }
                             }",
                             body = AnnotatedString.fromHtml(
-                                i.asJsonObject.get("description")!!.asString,
+                                i.asJsonObject.get("description").asString?: "No description",
                                 linkStyles = linkStyle
                             ),
-                            rawBody = i.asJsonObject.get("description")!!.asString,
-                            issueDate = LocalDate.parse(i.asJsonObject.get("issue_date")!!.asString),
-                            dueDate = LocalDate.parse(i.asJsonObject.get("due_date")!!.asString),
-                            id = i.asJsonObject.get("status")!!.asJsonObject.get("id")!!.asString,
+                            rawBody = i.asJsonObject.get("description").asString?: "No description",
+                            issueDate = LocalDate.parse(i.asJsonObject.get("issue_date").asString?:"1990-01-01"),
+                            dueDate = LocalDate.parse(i.asJsonObject.get("due_date").asString?:"2200-01-01"),
+                            id = i.asJsonObject.get("status")!!.asJsonObject.get("id").asString?:UUID.randomUUID().toString(),
                             attachments = attachments
                         )
                     }
@@ -444,6 +446,7 @@ class RequestMaker {
                     rawHomeworksList += normalHomeworkToHomeworkContent(homework)
                 }
                 homeworkDao.insertAll(rawHomeworksList)
+                onFinish()
             }
         }
     }
