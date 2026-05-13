@@ -421,12 +421,16 @@ class RequestMaker {
                             complete = isComplete,
                             teacher = (if (i.asJsonObject.get("teacher") !is JsonNull) {i.asJsonObject.get("teacher").asString} else ""),
                             subject = (if (i.asJsonObject.get("subject") !is JsonNull) {i.asJsonObject.get("subject").asString} else ""),
-                            completionTime = "${(if (i.asJsonObject.get("completion_time_value") !is JsonNull) {i.asJsonObject.get("completion_time_value").asString + " "} else "")}${
-                                if (i.asJsonObject.get("completion_time_value") !is JsonNull) {
-                                    (if (i.asJsonObject.get("completion_time_unit") !is JsonNull) {i.asJsonObject.get("completion_time_unit").asString} else "")
-                                }
-                                else { "" }
-                            }",
+                            completionTime = (
+                                    if (i.asJsonObject.get("completion_time_value") !is JsonNull) {
+                                        if (i.asJsonObject.get("completion_time_value").asString != "") {
+                                            i.asJsonObject.get("completion_time_value").asString + " " +
+                                                (if (i.asJsonObject.get("completion_time_unit") !is JsonNull) {
+                                                    i.asJsonObject.get("completion_time_unit").asString
+                                                } else "")
+                                        } else ""
+                                    } else "")
+                            ,
                             body = AnnotatedString.fromHtml(
                                 (if (i.asJsonObject.get("description") !is JsonNull) {i.asJsonObject.get("description").asString} else "No description"),
                                 linkStyles = linkStyle
@@ -493,7 +497,7 @@ class RequestMaker {
         }
     }
 
-    fun tickHomework(id: String? = studentId) {
+    fun tickHomework(id: String? = studentId, onFinish: () -> Unit = {}) {
         val url = "https://www.classcharts.com/apiv2student/homeworkticked/$id".toHttpUrlOrNull()!!
             .newBuilder()
             .addQueryParameter("studentId", studentId)
@@ -507,6 +511,7 @@ class RequestMaker {
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
         }
+        onFinish()
     }
 
     fun listLessons(date: LocalDate): Either<MutableList<Lesson>, ErrorType> {

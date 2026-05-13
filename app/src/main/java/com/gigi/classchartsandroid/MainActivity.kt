@@ -75,6 +75,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.Path
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -192,6 +193,7 @@ class MainActivity : ComponentActivity() {
             var loginResponse by remember { mutableStateOf(runBlocking { requestMaker.login(studentId, studentDob) }) }
             val homeworksList = remember { mutableStateListOf<Homework>() }
             var updateHomeworksColumnNeeded by remember { mutableStateOf(false) }
+            var triggerHomeworkListUpdate by remember {mutableStateOf(true)}
             var showCompletedHomeworksChecked by remember { mutableStateOf(true) }
             val linkStyle = TextLinkStyles(
                 style = SpanStyle(
@@ -273,6 +275,17 @@ class MainActivity : ComponentActivity() {
                                                 linkStyle,
                                                 colorScheme,
                                                 { updateHomeworksColumnNeeded = true })
+                                        }
+                                    }
+                                    if (triggerHomeworkListUpdate) {
+                                        triggerHomeworkListUpdate = false
+                                        homeworkListScope.launch(Dispatchers.IO) {
+                                            requestMaker.refreshHomeworkList(
+                                                showCompletedHomeworksChecked,
+                                                linkStyle,
+                                                colorScheme,
+                                                { updateHomeworksColumnNeeded = true }
+                                            )
                                         }
                                     }
 
@@ -372,7 +385,22 @@ fun TodayMarker() {
 
 
 @Composable
-fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boolean = false, navigate: () -> Unit = {}, requestMaker: RequestMaker? = null, homeworksList: MutableList<Homework> = mutableListOf<Homework>(), onlyIncomplete: Boolean = true, linkStyle: TextLinkStyles? = null) {
+fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boolean = false, navigate: () -> Unit = {}, requestMaker: RequestMaker? = null, homeworksList: MutableList<Homework> = mutableListOf<Homework>(), onlyIncomplete: Boolean = true, linkStyle: TextLinkStyles? = null, triggerHomeworkListUpdate: () -> Unit = {}) {
+    var subtitleText = ""
+    var subtitleTextList = listOf<String>()
+    if (homework.subject != "") subtitleTextList += homework.subject
+    if (homework.teacher != "") subtitleTextList += homework.teacher
+    if (homework.completionTime != "") subtitleTextList += homework.completionTime
+    for (i in 0..subtitleTextList.size-1) {
+        if (i == 0) {
+            subtitleText += subtitleTextList.get(i)
+        }
+        else {
+            subtitleText += " - "
+            subtitleText += subtitleTextList.get(i)
+        }
+    }
+
     Card(modifier = modifier
         .fillMaxWidth()
         .padding(10.dp)
@@ -386,7 +414,7 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                     Checkbox(
                         checked = homework.complete, onCheckedChange =
                             {
-                                requestMaker?.tickHomework(homework.id!!)
+                                requestMaker?.tickHomework(homework.id!!, triggerHomeworkListUpdate)
                                 requestMaker?.refreshHomeworkList(
                                     onlyIncomplete,
                                     linkStyle!!,
@@ -405,7 +433,7 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                     )
                     if (compact) {
                         Text(
-                            text = homework.subject + " - " + homework.teacher + " - " + homework.completionTime,
+                            text = subtitleText,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -416,7 +444,7 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
             if (!compact) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = homework.subject + " - " + homework.teacher + " - " + homework.completionTime,
+                    text = subtitleText,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
