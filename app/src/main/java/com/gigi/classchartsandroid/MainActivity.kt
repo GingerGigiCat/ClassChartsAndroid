@@ -13,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -83,6 +84,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -279,7 +281,12 @@ class MainActivity : ComponentActivity() {
                                         key = {index, homework -> homework.id!! }
                                     ) { index, homework ->
                                         if (homework.dueDate.toString() != homeworksList[max(index-1, 0)].dueDate.toString() || index == 0) {
-                                            DateDivider(homework.dueDate!!)
+                                            if (homework.dueDate!! >= LocalDate.now() && homeworksList[max(index-1, 0)].dueDate!! < LocalDate.now()) {
+                                                TodayMarker()
+                                            }
+                                            if (homework.dueDate != LocalDate.now()) {
+                                                DateDivider(homework.dueDate)
+                                            }
                                         }
                                         HomeworkCard(
                                             homework = homework, compact = false,
@@ -349,6 +356,17 @@ fun DateDivider(date: LocalDate, modifier: Modifier = Modifier.padding(horizonta
         else if (today.plusDays(1) == date) { dateText = "Tomorrow" }
         Text(dateText, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
 
+    }
+}
+
+@Preview
+@Composable
+fun TodayMarker() {
+    ClassChartsAndroidTheme {
+        Card(modifier = Modifier.padding(10.dp).fillMaxWidth(),
+            colors = CardColors(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)) {
+            Text("Today", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top=10.dp, bottom=10.dp, start=10.dp))
+        }
     }
 }
 
