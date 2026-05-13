@@ -101,8 +101,8 @@ data class Lesson(
 
 @Dao
 interface HomeworkDao {
-    @Query("SELECT * FROM homeworkcontentobject ORDER BY due_date ASC")
-    fun getAll(): MutableList<HomeworkContentObject>
+    @Query("SELECT * FROM homeworkcontentobject WHERE NOT (complete AND :onlyIncomplete) ORDER BY due_date ASC")
+    fun getAll(onlyIncomplete: Boolean = false): MutableList<HomeworkContentObject>
 
     @Insert(onConflict = REPLACE)
     fun insertAll(homeworks: MutableList<HomeworkContentObject>)
@@ -417,25 +417,23 @@ class RequestMaker {
                         }
 
                         homeworksList += Homework(
-                            title = i.asJsonObject.get("title").asString?: "",
+                            title = (if (i.asJsonObject.get("title") !is JsonNull) {i.asJsonObject.get("title").asString} else ""),
                             complete = isComplete,
-                            teacher = i.asJsonObject.get("teacher").asString?: "",
-                            subject = (if (!(i.asJsonObject.get("subject") is JsonNull)) {i.asJsonObject.get("subject").asString} else ""),
-                            completionTime = "${i.asJsonObject.get("completion_time_value").asString?:""} ${
-                                if ((i.asJsonObject.get("completion_time_value").asString ?: "") != "") {
-                                    i.asJsonObject.get(
-                                        "completion_time_unit"
-                                    )!!.asString
+                            teacher = (if (i.asJsonObject.get("teacher") !is JsonNull) {i.asJsonObject.get("teacher").asString} else ""),
+                            subject = (if (i.asJsonObject.get("subject") !is JsonNull) {i.asJsonObject.get("subject").asString} else ""),
+                            completionTime = "${(if (i.asJsonObject.get("completion_time_value") !is JsonNull) {i.asJsonObject.get("completion_time_value").asString + " "} else "")}${
+                                if (i.asJsonObject.get("completion_time_value") !is JsonNull) {
+                                    (if (i.asJsonObject.get("completion_time_unit") !is JsonNull) {i.asJsonObject.get("completion_time_unit").asString} else "")
                                 }
                                 else { "" }
                             }",
                             body = AnnotatedString.fromHtml(
-                                i.asJsonObject.get("description").asString?: "No description",
+                                (if (i.asJsonObject.get("description") !is JsonNull) {i.asJsonObject.get("description").asString} else "No description"),
                                 linkStyles = linkStyle
                             ),
-                            rawBody = i.asJsonObject.get("description").asString?: "No description",
-                            issueDate = LocalDate.parse(i.asJsonObject.get("issue_date").asString?:"1990-01-01"),
-                            dueDate = LocalDate.parse(i.asJsonObject.get("due_date").asString?:"2200-01-01"),
+                            rawBody = (if (i.asJsonObject.get("description") !is JsonNull) {i.asJsonObject.get("description").asString} else "No description"),
+                            issueDate = LocalDate.parse((if (i.asJsonObject.get("issue_date") !is JsonNull) {i.asJsonObject.get("issue_date").asString} else "1990-01-01")),
+                            dueDate = LocalDate.parse((if (i.asJsonObject.get("due_date") !is JsonNull) {i.asJsonObject.get("due_date").asString} else "2200-01-01")),
                             id = i.asJsonObject.get("status")!!.asJsonObject.get("id").asString?:UUID.randomUUID().toString(),
                             attachments = attachments
                         )

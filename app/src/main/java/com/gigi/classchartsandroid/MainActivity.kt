@@ -67,6 +67,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -101,6 +102,8 @@ import arrow.core.Either
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
@@ -237,6 +240,7 @@ class MainActivity : ComponentActivity() {
 
             NavHost(navController, startDestination = startDestination) {
                 composable<HomeworkListObject> {
+                    val homeworkListScope = rememberCoroutineScope()
                     //HomeworkList(requestMaker = requestMaker, homeworksList = homeworksList, onlyIncomplete = true)
                     ClassChartsAndroidTheme {
                         Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow, bottomBar = navBar) { innerPadding ->
@@ -249,19 +253,25 @@ class MainActivity : ComponentActivity() {
                                     if (updateHomeworksColumnNeeded) {
                                         updateHomeworksColumnNeeded = false
                                         Log.d("HomeworksListUpdate", "Updating the homework list due to db change")
-                                        val rawHomeworksList = requestMaker.homeworkDao.getAll()
+                                        val rawHomeworksList = requestMaker.homeworkDao.getAll(showCompletedHomeworksChecked)
                                         homeworksList.clear()
                                         for (rawHomework in rawHomeworksList) {
                                             homeworksList += requestMaker.homeworkContentToNormalHomework(rawHomework, linkStyle)
                                         }
                                     }
                                     else {
-                                        val rawHomeworksList = requestMaker.homeworkDao.getAll()
+                                        val rawHomeworksList = requestMaker.homeworkDao.getAll(showCompletedHomeworksChecked)
                                         homeworksList.clear()
                                         for (rawHomework in rawHomeworksList) {
                                             homeworksList += requestMaker.homeworkContentToNormalHomework(rawHomework, linkStyle)
                                         }
-                                        requestMaker.refreshHomeworkList(showCompletedHomeworksChecked, linkStyle, colorScheme, {updateHomeworksColumnNeeded = true})
+                                        homeworkListScope.launch(Dispatchers.IO) {
+                                            requestMaker.refreshHomeworkList(
+                                                showCompletedHomeworksChecked,
+                                                linkStyle,
+                                                colorScheme,
+                                                { updateHomeworksColumnNeeded = true })
+                                        }
                                     }
 
                                     itemsIndexed(
