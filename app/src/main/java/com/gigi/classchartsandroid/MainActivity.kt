@@ -12,6 +12,7 @@ import android.webkit.MimeTypeMap
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -105,7 +106,9 @@ import arrow.core.Either
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
@@ -116,13 +119,14 @@ import kotlin.math.max
 
 // Features to add:
 // Tickable homeworks DONE but make it work on the actual homework page
-// Timetable DONE but add swiping between days
+// Timetable DONE but add swiping between days DONE
 // Login page DONE
 // Add notes to homeworks
 // Half tick homeworks
+// User addable tasks
 // Shading of incomplete homeworks
 // fix networkonmainthread
-// make it not hang when you do anything
+// make it not hang when you do anything // TODO: ALSO DOING THIS
 // figure out why the calendar is laggy to open
 // implement loading wheels and nice error handling
 // Export your timetable and then import to a friend? because storing friend's classcharts code directly is kind of a bit very insecure
@@ -130,13 +134,16 @@ import kotlin.math.max
 // Make opening microsoft documents not crash it
 // Login with microsoft??
 // Make the timetable show free periods?
-// User addable tasks
 // Offline mode // TODO: THIS
+// Add not terrible wearos support
+// Add desktop/web app support
+// Add notification support (new homework set, homeworks due tomorrow etc)
+
 
 
 val Context.appDataStore: DataStore<Preferences> by preferencesDataStore("settings")
-
 class MainActivity : ComponentActivity() {
+    public val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     open class ScreenObject
 
     @Serializable
@@ -301,18 +308,28 @@ class MainActivity : ComponentActivity() {
                                                 DateDivider(homework.dueDate)
                                             }
                                         }
-                                        HomeworkCard(
-                                            homework = homework, compact = false,
-                                            navigate = {
-                                                navController.navigate(
-                                                    requestMaker.normalHomeworkToHomeworkContent(homework)
-                                                )
-                                            },
-                                            requestMaker = requestMaker,
-                                            homeworksList = homeworksList,
-                                            onlyIncomplete = showCompletedHomeworksChecked,
-                                            linkStyle = linkStyle,
-                                        )
+                                        var cardVisible by remember { mutableStateOf(true) }
+                                        AnimatedVisibility(visible=cardVisible) {
+                                            HomeworkCard(
+                                                homework = homework, compact = false,
+                                                navigate = {
+                                                    navController.navigate(
+                                                        requestMaker.normalHomeworkToHomeworkContent(
+                                                            homework
+                                                        )
+                                                    )
+                                                },
+                                                requestMaker = requestMaker,
+                                                homeworksList = homeworksList,
+                                                onlyIncomplete = showCompletedHomeworksChecked,
+                                                linkStyle = linkStyle,
+                                                triggerHomeworkListUpdate = {
+                                                    triggerHomeworkListUpdate = true
+                                                },
+                                                homeworkListScope = homeworkListScope,
+                                                toggleVisibility = { if (showCompletedHomeworksChecked) cardVisible = !cardVisible }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -385,7 +402,7 @@ fun TodayMarker() {
 
 
 @Composable
-fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boolean = false, navigate: () -> Unit = {}, requestMaker: RequestMaker? = null, homeworksList: MutableList<Homework> = mutableListOf<Homework>(), onlyIncomplete: Boolean = true, linkStyle: TextLinkStyles? = null, triggerHomeworkListUpdate: () -> Unit = {}) {
+fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boolean = false, navigate: () -> Unit = {}, requestMaker: RequestMaker? = null, homeworksList: MutableList<Homework> = mutableListOf<Homework>(), onlyIncomplete: Boolean = true, linkStyle: TextLinkStyles? = null, triggerHomeworkListUpdate: () -> Unit = {}, homeworkListScope: CoroutineScope = CoroutineScope(Dispatchers.IO), toggleVisibility: () -> Unit = {}) {
     var subtitleText = ""
     var subtitleTextList = listOf<String>()
     if (homework.subject != "") subtitleTextList += homework.subject
@@ -414,13 +431,15 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                     Checkbox(
                         checked = homework.complete, onCheckedChange =
                             {
-                                requestMaker?.tickHomework(homework.id!!, triggerHomeworkListUpdate)
-                                requestMaker?.refreshHomeworkList(
-                                    onlyIncomplete,
-                                    linkStyle!!,
-                                    colorScheme
-                                )
-                            })
+                                toggleVisibility()
+                                homeworkListScope.launch {
+                                    requestMaker?.tickHomework(
+                                        homework.id!!,
+                                        triggerHomeworkListUpdate
+                                    )
+                                }
+                            }
+                    )
                 }
                 Spacer(modifier = Modifier.width(15.dp))
                 Column {
