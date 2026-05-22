@@ -13,6 +13,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,9 +39,6 @@ import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
@@ -77,6 +78,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.Path
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -116,6 +118,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
+import kotlin.math.min
 
 // Features to add:
 // Tickable homeworks DONE but make it work on the actual homework page
@@ -214,7 +217,7 @@ class MainActivity : ComponentActivity() {
             var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
             val destinations = listOf(
                 NavigationItem("Homework",
-                    Icons.AutoMirrored.Filled.List,
+                    painterResource(R.drawable.ico_list),
                     HomeworkListObject),
                 NavigationItem("Timetable",
                     Icons.Default.DateRange,
@@ -270,7 +273,7 @@ class MainActivity : ComponentActivity() {
                                             homeworksList += requestMaker.homeworkContentToNormalHomework(rawHomework, linkStyle)
                                         }
                                     }
-                                    else {
+                                    else if (!triggerHomeworkListUpdate){
                                         val rawHomeworksList = requestMaker.homeworkDao.getAll(showCompletedHomeworksChecked)
                                         homeworksList.clear()
                                         for (rawHomework in rawHomeworksList) {
@@ -285,7 +288,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                     if (triggerHomeworkListUpdate) {
-                                        triggerHomeworkListUpdate = false
+
                                         homeworkListScope.launch(Dispatchers.IO) {
                                             requestMaker.refreshHomeworkList(
                                                 showCompletedHomeworksChecked,
@@ -294,22 +297,35 @@ class MainActivity : ComponentActivity() {
                                                 { updateHomeworksColumnNeeded = true }
                                             )
                                         }
+                                        triggerHomeworkListUpdate = false
                                     }
 
                                     itemsIndexed(
                                         items = homeworksList,
                                         key = {index, homework -> homework.id!! }
                                     ) { index, homework ->
-                                        if (homework.dueDate.toString() != homeworksList[max(index-1, 0)].dueDate.toString() || index == 0) {
-                                            if (homework.dueDate!! >= LocalDate.now() && homeworksList[max(index-1, 0)].dueDate!! < LocalDate.now()) {
-                                                TodayMarker()
-                                            }
-                                            if (homework.dueDate != LocalDate.now()) {
-                                                DateDivider(homework.dueDate)
+                                        var cardVisible by remember { mutableStateOf(true) }
+                                        var lonelyHomework = ((index == 0) || homework.dueDate != homeworksList[max(index-1, 0)].dueDate) && (index == homeworksList.size-1 || homework.dueDate != homeworksList[min(index+1, homeworksList.size-1)].dueDate)
+                                        AnimatedVisibility(visible=!(!cardVisible && lonelyHomework), ) {
+                                            if (homework.dueDate.toString() != homeworksList[max(
+                                                    index - 1,
+                                                    0
+                                                )].dueDate.toString() || index == 0
+                                            ) {
+                                                if (homework.dueDate!! >= LocalDate.now() && (homeworksList[max(
+                                                        index - 1,
+                                                        0
+                                                    )].dueDate!! < LocalDate.now() || index == 0)
+                                                ) {
+                                                    TodayMarker()
+                                                }
+                                                if (homework.dueDate != LocalDate.now()) {
+                                                    DateDivider(homework.dueDate)
+                                                }
                                             }
                                         }
-                                        var cardVisible by remember { mutableStateOf(true) }
-                                        AnimatedVisibility(visible=cardVisible) {
+
+                                        AnimatedVisibility(enter = fadeIn() + expandVertically() + MotionScheme(), exit = fadeOut() + shrinkVertically(), visible=cardVisible) {
                                             HomeworkCard(
                                                 homework = homework, compact = false,
                                                 navigate = {
@@ -327,7 +343,7 @@ class MainActivity : ComponentActivity() {
                                                     triggerHomeworkListUpdate = true
                                                 },
                                                 homeworkListScope = homeworkListScope,
-                                                toggleVisibility = { if (showCompletedHomeworksChecked) cardVisible = !cardVisible }
+                                                toggleVisibility = { if (showCompletedHomeworksChecked)   cardVisible = !cardVisible }
                                             )
                                         }
                                     }
@@ -417,6 +433,7 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
             subtitleText += subtitleTextList.get(i)
         }
     }
+    var checkedState by remember { mutableStateOf(homework.complete)}
 
     Card(modifier = modifier
         .fillMaxWidth()
@@ -429,8 +446,9 @@ fun HomeworkCard(homework: Homework, modifier: Modifier = Modifier, compact: Boo
                 CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 10.dp) {
                     val colorScheme = MaterialTheme.colorScheme
                     Checkbox(
-                        checked = homework.complete, onCheckedChange =
+                        checked = checkedState, onCheckedChange =
                             {
+                                checkedState = !checkedState
                                 toggleVisibility()
                                 homeworkListScope.launch {
                                     requestMaker?.tickHomework(
