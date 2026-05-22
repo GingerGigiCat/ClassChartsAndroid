@@ -76,14 +76,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.Path
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -217,10 +220,10 @@ class MainActivity : ComponentActivity() {
             var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
             val destinations = listOf(
                 NavigationItem("Homework",
-                    painterResource(R.drawable.ico_list),
+                    ImageVector.vectorResource(R.drawable.ico_list),
                     HomeworkListObject),
                 NavigationItem("Timetable",
-                    Icons.Default.DateRange,
+                    ImageVector.vectorResource(R.drawable.ico_calendar_month),
                     TimetableScreenObject)
             )
 
@@ -325,7 +328,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
 
-                                        AnimatedVisibility(enter = fadeIn() + expandVertically() + MotionScheme(), exit = fadeOut() + shrinkVertically(), visible=cardVisible) {
+                                        AnimatedVisibility(enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically(), visible=cardVisible) {
                                             HomeworkCard(
                                                 homework = homework, compact = false,
                                                 navigate = {
@@ -609,11 +612,12 @@ fun DatePickerButton(getLocalDate: () -> LocalDate, onClick: () -> Unit, label: 
         ),
         leadingIcon = {
             Image(
-                painterResource(R.drawable.calendar),
+                painterResource(R.drawable.ico_calendar_month),
                 contentDescription = "Calendar icon",
                 modifier = Modifier
                     .padding(start = 6.dp)
-                    .size(25.dp)
+                    .size(25.dp),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.secondary)
             )
         }
     )
@@ -624,7 +628,8 @@ fun DatePickerButton(getLocalDate: () -> LocalDate, onClick: () -> Unit, label: 
 fun DoDatePicker(state: DatePickerState = rememberDatePickerState(), disableDatePicker: () -> Unit): DatePickerState {
     DatePickerDialog(onDismissRequest = disableDatePicker,
         confirmButton = {TextButton(disableDatePicker) { Text("OK") } },
-        dismissButton = {TextButton(disableDatePicker) { Text("Cancel") }}
+        dismissButton = {TextButton(disableDatePicker) { Text("Cancel") }},
+        modifier = Modifier.verticalScroll(rememberScrollState())
     )
     {
         DatePicker(state)
@@ -716,15 +721,18 @@ fun HomeworkAttachmentCard(attachment: Attachment, modifier:Modifier = Modifier)
                 ) {
                 var cardIcon: Int
                 if (attachment.isFile) {
-                    cardIcon = R.drawable.file
+                    cardIcon = R.drawable.ico_description
                 } else {
-                    cardIcon = R.drawable.link4
+                    cardIcon = R.drawable.ico_link_2
                 }
                 Image(
                     painterResource(cardIcon), "link",
                     modifier = Modifier
                         .padding(10.dp)
                         .align(Alignment.CenterHorizontally)
+                        .height(50.dp).width(50.dp),
+                    contentScale = ContentScale.Fit,
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.secondary)
                 )
             }
             Text(

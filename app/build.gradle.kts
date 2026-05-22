@@ -73,6 +73,7 @@ dependencies {
     implementation("androidx.datastore:datastore:1.2.0")
     implementation("io.arrow-kt:arrow-core:2.0.0")
     implementation("io.arrow-kt:arrow-fx-coroutines:2.0.0")
+    implementation("androidx.appcompat:appcompat:1.3.1")
 
 
     val room_version = "2.8.4"
