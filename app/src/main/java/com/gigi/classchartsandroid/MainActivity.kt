@@ -205,7 +205,7 @@ class MainActivity : ComponentActivity() {
             var studentDob by remember { mutableStateOf(requestMaker.studentDob) }
             var loginResponse by remember { mutableStateOf(runBlocking { requestMaker.login(studentId, studentDob) }) }
             val homeworksList = remember { mutableStateListOf<Homework>() }
-            var updateHomeworksColumnNeeded by remember { mutableStateOf(false) }
+            var updateHomeworksColumnNeeded by remember { mutableStateOf(true) }
             var triggerHomeworkListUpdate by remember {mutableStateOf(true)}
             var showCompletedHomeworksChecked by remember { mutableStateOf(true) }
             val linkStyle = TextLinkStyles(
@@ -310,20 +310,22 @@ class MainActivity : ComponentActivity() {
                                         var cardVisible by remember { mutableStateOf(true) }
                                         var lonelyHomework = ((index == 0) || homework.dueDate != homeworksList[max(index-1, 0)].dueDate) && (index == homeworksList.size-1 || homework.dueDate != homeworksList[min(index+1, homeworksList.size-1)].dueDate)
                                         AnimatedVisibility(visible=!(!cardVisible && lonelyHomework), ) {
-                                            if (homework.dueDate.toString() != homeworksList[max(
-                                                    index - 1,
-                                                    0
-                                                )].dueDate.toString() || index == 0
-                                            ) {
-                                                if (homework.dueDate!! >= LocalDate.now() && (homeworksList[max(
+                                            Column {
+                                                if (homework.dueDate != homeworksList[max(
                                                         index - 1,
                                                         0
-                                                    )].dueDate!! < LocalDate.now() || index == 0)
+                                                    )].dueDate || index == 0 // if date is different to the previous one
                                                 ) {
-                                                    TodayMarker()
-                                                }
-                                                if (homework.dueDate != LocalDate.now()) {
-                                                    DateDivider(homework.dueDate)
+                                                    if (homework.dueDate!! >= LocalDate.now() && (homeworksList[max(
+                                                            index - 1,
+                                                            0
+                                                        )].dueDate!! < LocalDate.now() || index == 0)
+                                                    ) {
+                                                        TodayMarker()
+                                                    }
+                                                    if (homework.dueDate != LocalDate.now()) {
+                                                        DateDivider(homework.dueDate)
+                                                    }
                                                 }
                                             }
                                         }
@@ -559,7 +561,10 @@ fun LogInScreen(modifier:Modifier = Modifier, requestMaker: RequestMaker, naviga
             label = { Text("Classcharts code") })
         Spacer(Modifier.height(10.dp))
         DatePickerButton(getLocalDateObjectForSelected, {showDatePicker = true})
-        if (showDatePicker) dateState = DoDatePicker(dateState, { showDatePicker = false })
+        if (showDatePicker) DoDatePicker(dateState, {theState ->
+            dateState=theState
+            showDatePicker = false
+        })
         Spacer(Modifier.height(15.dp))
         Row {
             Spacer(Modifier.weight(1f))
@@ -625,16 +630,16 @@ fun DatePickerButton(getLocalDate: () -> LocalDate, onClick: () -> Unit, label: 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DoDatePicker(state: DatePickerState = rememberDatePickerState(), disableDatePicker: () -> Unit): DatePickerState {
-    DatePickerDialog(onDismissRequest = disableDatePicker,
-        confirmButton = {TextButton(disableDatePicker) { Text("OK") } },
-        dismissButton = {TextButton(disableDatePicker) { Text("Cancel") }},
+fun DoDatePicker(state: DatePickerState = rememberDatePickerState(), disableDatePicker: (DatePickerState) -> Unit) {
+    var editableState by remember { mutableStateOf(state) }
+    DatePickerDialog(onDismissRequest = { disableDatePicker(editableState) },
+        confirmButton = {TextButton({ disableDatePicker(editableState) }) { Text("OK") } },
+        dismissButton = {TextButton({ disableDatePicker(state) }) { Text("Cancel") }},
         modifier = Modifier.verticalScroll(rememberScrollState())
     )
     {
-        DatePicker(state)
+        DatePicker(editableState)
     }
-    return state
 }
 
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
@@ -957,7 +962,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                     val pageCount = 10000
                     val pagerState =
                         rememberPagerState(pageCount = { pageCount }, initialPage = pageCount / 2)
-                    var middlePageDate = LocalDate.now()
+                    var middlePageDate by remember { mutableStateOf(LocalDate.now()) }
                     var lastCurrentPage = pageCount / 2
 
                     DatePickerButton(
@@ -967,12 +972,14 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                         Modifier.onGloballyPositioned({buttonHeight.value = with(density) {it.size.height.toDp()}})
                     )
                     Spacer(Modifier.height(8.dp))
-                    if (showDatePicker) dateState = DoDatePicker(dateState, {
+                    if (showDatePicker) DoDatePicker(dateState, { theState ->
+                        dateState.selectedDateMillis = theState.selectedDateMillis
                         showDatePicker = false
-                        if (MainActivity.isInstanceInitialised()) {
-                            lessonsListResponse = requestMaker.listLessons(getLocalDateObjectForSelected())
-                        }
+
                         middlePageDate = getLocalDateObjectForSelected()
+                        if (MainActivity.isInstanceInitialised()) {
+                            //lessonsListResponse = requestMaker.listLessons(middlePageDate)
+                        }
                         pagerState.requestScrollToPage(pageCount / 2)
                     })
                     Log.d("Height", buttonHeight.toString())
@@ -988,25 +995,28 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                                     lessonsListResponse
                                 )
                             }
+                            var lastMiddlePageDate = LocalDate.of(1, 1, 1)
+                            localLessonsListResponse = lessonsListResponse
+                            var localDate by remember { mutableStateOf(LocalDate.now()) }
                             val localLessons = remember { mutableStateListOf<Lesson>() }
-                            if (localLessons.isEmpty()) {
-                                localLessons.addAll(localLessons)
-                            }
+                            localDate = middlePageDate.plusDays((page - pageCount / 2).toLong())
 
-                            var isInitial by remember { mutableStateOf(true) }
-                            if (!(!MainActivity.isInstanceInitialised()) && isInitial) {
-                                isInitial = false
-                                Log.d("Slow", "ListLessonsLocal")
-                                localLessonsListResponse =
-                                    requestMaker.listLessons(middlePageDate.plusDays((page - pageCount / 2).toLong()))
-                                if (localLessonsListResponse != null) {
-                                    if (localLessonsListResponse!!.isLeft()) {
-                                        if (localLessonsListResponse!!.leftOrNull() != null) {
-                                            localLessons.clear()
-                                            localLessons.addAll(
-                                                localLessonsListResponse!!.leftOrNull()
-                                                    ?: mutableListOf<Lesson>()
-                                            )
+                            if (middlePageDate != lastMiddlePageDate) {
+                                var isInitial by remember { mutableStateOf(true) }
+                                if (!(!MainActivity.isInstanceInitialised()) && isInitial) {
+                                    isInitial = false
+                                    Log.d("Slow", "ListLessonsLocal")
+                                    localLessonsListResponse =
+                                        requestMaker.listLessons(localDate)
+                                    if (localLessonsListResponse != null) {
+                                        if (localLessonsListResponse!!.isLeft()) {
+                                            if (localLessonsListResponse!!.leftOrNull() != null) {
+                                                localLessons.clear()
+                                                localLessons.addAll(
+                                                    localLessonsListResponse!!.leftOrNull()
+                                                        ?: mutableListOf<Lesson>()
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -1017,6 +1027,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                                     getMillisForLocalDate(middlePageDate.plusDays(((pagerState.currentPage - pageCount / 2).toLong()))) // TODO: page here used to be the currentPage from the datepicker but using page makes it worse, i think i need some combination of the two
                                 lastCurrentPage = pagerState.currentPage
                             }
+
 
                             DateDivider(middlePageDate.plusDays(((pagerState.currentPage - pageCount / 2).toLong())), Modifier.padding(horizontal = 0.dp, vertical = 5.dp))
                             Spacer(Modifier.height(8.dp))
