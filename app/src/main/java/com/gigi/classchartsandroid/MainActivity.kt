@@ -959,7 +959,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                         .verticalScroll(rememberScrollState()).fillMaxSize()
                 ) {
                     var leftSizeDp by remember { mutableStateOf(10.dp) }
-                    val pageCount = 10000
+                    val pageCount = 100000
                     val pagerState =
                         rememberPagerState(pageCount = { pageCount }, initialPage = pageCount / 2)
                     var middlePageDate by remember { mutableStateOf(LocalDate.now()) }
@@ -976,11 +976,12 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                         dateState.selectedDateMillis = theState.selectedDateMillis
                         showDatePicker = false
 
-                        middlePageDate = getLocalDateObjectForSelected()
+                        //middlePageDate = getLocalDateObjectForSelected()
                         if (MainActivity.isInstanceInitialised()) {
                             //lessonsListResponse = requestMaker.listLessons(middlePageDate)
                         }
-                        pagerState.requestScrollToPage(pageCount / 2)
+                        pagerState.requestScrollToPage((pageCount / 2 + getLocalDateObjectForSelected().toEpochDay() - middlePageDate.toEpochDay()).toInt())
+                        //pagerState.requestScrollToPage(pageCount / 2)
                     })
                     Log.d("Height", buttonHeight.toString())
                     HorizontalPager(
