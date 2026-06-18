@@ -87,16 +87,19 @@ data class Homework(
     val attachments: MutableList<Attachment>? = null
     )
 
+@Serializable
+@Entity
 data class Lesson(
-    val teacherName: String,
-    val lessonName: String,
-    val subjectName: String,
+    @ColumnInfo("teacher_name") val teacherName: String,
+    @ColumnInfo("lesson_name") val lessonName: String,
+    @ColumnInfo("subject_name") val subjectName: String,
     val isAlternativeLesson: Boolean,
     val periodNumber: String,
     val roomName: String,
     val startTime: String,
     val endTime: String,
-    val key: Int
+    @PrimaryKey val key: Int,
+    val date: String
 )
 
 @Dao
@@ -518,11 +521,11 @@ class RequestMaker {
         var lessonList = mutableListOf<Lesson>()
 
         if (sessionId == "demo") {
-            lessonList += Lesson(teacherName="Mx C Teacher", lessonName="12C/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="${LocalDate.now().toString()}T08:40:00+00:00", endTime="${LocalDate.now().toString()}T09:00:00+00:00", key=1157931873)
-            lessonList += Lesson(teacherName="Mrs E Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="1", roomName="L01", startTime="${LocalDate.now().toString()}T09:00:00+00:00", endTime="${LocalDate.now().toString()}T10:00:00+00:00", key=1192664549)
-            lessonList += Lesson(teacherName="Ms H Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="2", roomName="L06", startTime="${LocalDate.now().toString()}T10:05:00+00:00", endTime="${LocalDate.now().toString()}T11:05:00+00:00", key=1192664561)
-            lessonList += Lesson(teacherName="Mr D Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="3", roomName="U07", startTime="${LocalDate.now().toString()}T11:25:00+00:00", endTime="${LocalDate.now().toString()}T12:25:00+00:00", key=1157937234)
-            lessonList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="${LocalDate.now().toString()}T12:30:00+00:00", endTime="${LocalDate.now().toString()}T13:30:00+00:00", key=1157941107)
+            lessonList += Lesson(teacherName="Mx C Teacher", lessonName="12C/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="${LocalDate.now().toString()}T08:40:00+00:00", endTime="${LocalDate.now().toString()}T09:00:00+00:00", key=1157931873, date=LocalDate.now().toString())
+            lessonList += Lesson(teacherName="Mrs E Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="1", roomName="L01", startTime="${LocalDate.now().toString()}T09:00:00+00:00", endTime="${LocalDate.now().toString()}T10:00:00+00:00", key=1192664549, date=LocalDate.now().toString())
+            lessonList += Lesson(teacherName="Ms H Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="2", roomName="L06", startTime="${LocalDate.now().toString()}T10:05:00+00:00", endTime="${LocalDate.now().toString()}T11:05:00+00:00", key=1192664561, date=LocalDate.now().toString())
+            lessonList += Lesson(teacherName="Mr D Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="3", roomName="U07", startTime="${LocalDate.now().toString()}T11:25:00+00:00", endTime="${LocalDate.now().toString()}T12:25:00+00:00", key=1157937234, date=LocalDate.now().toString())
+            lessonList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="${LocalDate.now().toString()}T12:30:00+00:00", endTime="${LocalDate.now().toString()}T13:30:00+00:00", key=1157941107, date=LocalDate.now().toString())
         }
         else {
             val url =
@@ -558,7 +561,8 @@ class RequestMaker {
                             ?: "1970-01-01T00:00:00+00:00",
                         endTime = l.get("end_time")?.toString()?.replace("\"", "")
                             ?: "1970-01-01T00:00:00+00:00",
-                        key = l.get("key")?.toString()?.toInt() ?: 0
+                        key = l.get("key")?.toString()?.toInt() ?: 0,
+                        date = l.get("date")?.toString()?.replace("\"", "")?: "1970-01-01"
                     )
                 }
             }

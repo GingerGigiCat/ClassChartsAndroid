@@ -62,7 +62,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.getSelectedDate
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.setSelectedDate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -973,7 +975,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                     )
                     Spacer(Modifier.height(8.dp))
                     if (showDatePicker) DoDatePicker(dateState, { theState ->
-                        dateState.selectedDateMillis = theState.selectedDateMillis
+                        dateState.setSelectedDate(theState.getSelectedDate())
                         showDatePicker = false
 
                         //middlePageDate = getLocalDateObjectForSelected()
