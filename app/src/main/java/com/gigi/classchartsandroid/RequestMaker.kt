@@ -12,6 +12,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.toLowerCase
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.room.AutoMigration
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
@@ -93,13 +94,13 @@ data class Lesson(
     @ColumnInfo("teacher_name") val teacherName: String,
     @ColumnInfo("lesson_name") val lessonName: String,
     @ColumnInfo("subject_name") val subjectName: String,
-    val isAlternativeLesson: Boolean,
-    val periodNumber: String,
-    val roomName: String,
-    val startTime: String,
-    val endTime: String,
+    @ColumnInfo("is_alternative_lesson") val isAlternativeLesson: Boolean,
+    @ColumnInfo("period_number") val periodNumber: String,
+    @ColumnInfo("room_name") val roomName: String,
+    @ColumnInfo("start_time") val startTime: String,
+    @ColumnInfo("end_time") val endTime: String,
     @PrimaryKey val key: Int,
-    val date: String
+    @ColumnInfo("date") val date: String
 )
 
 @Dao
@@ -111,10 +112,24 @@ interface HomeworkDao {
     fun insertAll(homeworks: MutableList<HomeworkContentObject>)
 }
 
-@Database(entities = [HomeworkContentObject::class], version = 1)
+@Dao
+interface LessonDao {
+    @Query("SELECT * FROM lesson WHERE date = :date ORDER BY start_time ASC")
+    fun getDay(date: String = LocalDate.now().toString()): MutableList<Lesson>
+
+    @Insert(onConflict = REPLACE)
+    fun insertDay(lessons: MutableList<Lesson>)
+}
+
+@Database(entities = [HomeworkContentObject::class, Lesson::class], version = 2, exportSchema = true,
+    autoMigrations = [
+        AutoMigration(from=1, to=2)
+    ])
 abstract class AppDatabase : RoomDatabase() {
     abstract fun homeworkDao(): HomeworkDao
+    abstract fun lessonDao(): LessonDao
 }
+
 
 open class ErrorType
 
@@ -173,6 +188,8 @@ class RequestMaker {
         .allowMainThreadQueries()
         .build()
     val homeworkDao = roomDb.homeworkDao()
+    val lessonDao = roomDb.lessonDao()
+
 
     fun idFlow(): Flow<String> = MainActivity.instance.appDataStore.data.map { preferences ->
         preferences[STUDENT_ID] ?: ""
@@ -567,6 +584,7 @@ class RequestMaker {
                 }
             }
         }
+        lessonDao.insertDay(lessonList)
         return Either.Left(lessonList)
 
     }

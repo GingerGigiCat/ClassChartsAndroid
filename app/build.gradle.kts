@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     kotlin("plugin.serialization") version "2.0.21"
     id("com.google.devtools.ksp")
+    alias(libs.plugins.room)
 }
 
 android {
@@ -82,4 +83,9 @@ dependencies {
     // optional - Kotlin Extensions and Coroutines support for Room
     implementation("androidx.room:room-ktx:${room_version}")
 
+}
+
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
