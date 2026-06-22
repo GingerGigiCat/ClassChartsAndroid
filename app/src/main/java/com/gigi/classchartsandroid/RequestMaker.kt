@@ -121,10 +121,7 @@ interface LessonDao {
     fun insertDay(lessons: MutableList<Lesson>)
 }
 
-@Database(entities = [HomeworkContentObject::class, Lesson::class], version = 2, exportSchema = true,
-    autoMigrations = [
-        AutoMigration(from=1, to=2)
-    ])
+@Database(entities = [HomeworkContentObject::class, Lesson::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun homeworkDao(): HomeworkDao
     abstract fun lessonDao(): LessonDao
