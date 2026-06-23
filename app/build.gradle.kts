@@ -75,6 +75,8 @@ dependencies {
     implementation("io.arrow-kt:arrow-fx-coroutines:2.0.0")
     implementation("androidx.appcompat:appcompat:1.3.1")
 
+    implementation(project(":shared"))
+
 
     val room_version = "2.8.4"
     implementation("androidx.room:room-runtime:${room_version}")

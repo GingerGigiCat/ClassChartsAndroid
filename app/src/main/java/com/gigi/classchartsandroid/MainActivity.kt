@@ -18,7 +18,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -80,8 +79,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.Path
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -93,7 +90,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -110,9 +106,14 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import arrow.core.Either
+import com.gigi.cca.shared.Attachment
+import com.gigi.cca.shared.ErrorInvalidLogin
+import com.gigi.cca.shared.ErrorType
+import com.gigi.cca.shared.Homework
+import com.gigi.cca.shared.Lesson
+import com.gigi.cca.shared.RequestMaker
+import com.gigi.cca.shared.Success
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -771,21 +772,26 @@ private fun String.getMimeType(): String? {
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 fun HomeworkContentPreview() {
-    HomeworkContent(Homework(
-        title = "Modal Jazz Improvisation",
-        complete = true,
-        teacher = "Mr. Teacher",
-        subject = "Music",
-        completionTime = "5 hours",
-        body = AnnotatedString.fromHtml("\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n", linkStyles = TextLinkStyles(
-                SpanStyle(
-                    textDecoration = TextDecoration.Underline,
-                    color = MaterialTheme.colorScheme.primary
+    HomeworkContent(
+        Homework(
+            title = "Modal Jazz Improvisation",
+            complete = true,
+            teacher = "Mr. Teacher",
+            subject = "Music",
+            completionTime = "5 hours",
+            body = AnnotatedString.fromHtml(
+                "\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n",
+                linkStyles = TextLinkStyles(
+                    SpanStyle(
+                        textDecoration = TextDecoration.Underline,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 )
-                )),
-        issueDate = LocalDate.parse("2025-04-17"),
-        dueDate = LocalDate.parse("2025-12-20")
-    ))
+            ),
+            issueDate = LocalDate.parse("2025-04-17"),
+            dueDate = LocalDate.parse("2025-12-20")
+        )
+    )
 }
 
 @Composable
@@ -937,11 +943,66 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
     if (dateState.selectedDateMillis == null) dateState.selectedDateMillis = getMillisForLocalDate(LocalDate.now())
 
     if ( !MainActivity.isInstanceInitialised() || requestMaker.sessionId == "demo" ) {
-        lessonsList += Lesson(teacherName="Mx C Teacher", lessonName="12C/Tu", subjectName="Tutor Time", isAlternativeLesson=false, periodNumber="Tut", roomName="U02", startTime="${LocalDate.now().toString()}T08:40:00+00:00", endTime="${LocalDate.now().toString()}T09:00:00+00:00", key=1157931873, date=LocalDate.now().toString())
-        lessonsList += Lesson(teacherName="Mrs E Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="1", roomName="L01", startTime="${LocalDate.now().toString()}T09:00:00+00:00", endTime="${LocalDate.now().toString()}T10:00:00+00:00", key=1192664549, date=LocalDate.now().toString())
-        lessonsList += Lesson(teacherName="Ms H Teacher", lessonName="12D/Ma1", subjectName="Maths", isAlternativeLesson=false, periodNumber="2", roomName="L06", startTime="${LocalDate.now().toString()}T10:05:00+00:00", endTime="${LocalDate.now().toString()}T11:05:00+00:00", key=1192664561, date=LocalDate.now().toString())
-        lessonsList += Lesson(teacherName="Mr D Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="3", roomName="U07", startTime="${LocalDate.now().toString()}T11:25:00+00:00", endTime="${LocalDate.now().toString()}T12:25:00+00:00", key=1157937234, date=LocalDate.now().toString())
-        lessonsList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="${LocalDate.now().toString()}T12:30:00+00:00", endTime="${LocalDate.now().toString()}T13:30:00+00:00", key=1157941107, date=LocalDate.now().toString())
+        lessonsList += Lesson(
+            teacherName = "Mx C Teacher",
+            lessonName = "12C/Tu",
+            subjectName = "Tutor Time",
+            isAlternativeLesson = false,
+            periodNumber = "Tut",
+            roomName = "U02",
+            startTime = "${LocalDate.now().toString()}T08:40:00+00:00",
+            endTime = "${LocalDate.now().toString()}T09:00:00+00:00",
+            key = 1157931873,
+            date = LocalDate.now().toString()
+        )
+        lessonsList += Lesson(
+            teacherName = "Mrs E Teacher",
+            lessonName = "12D/Ma1",
+            subjectName = "Maths",
+            isAlternativeLesson = false,
+            periodNumber = "1",
+            roomName = "L01",
+            startTime = "${LocalDate.now().toString()}T09:00:00+00:00",
+            endTime = "${LocalDate.now().toString()}T10:00:00+00:00",
+            key = 1192664549,
+            date = LocalDate.now().toString()
+        )
+        lessonsList += Lesson(
+            teacherName = "Ms H Teacher",
+            lessonName = "12D/Ma1",
+            subjectName = "Maths",
+            isAlternativeLesson = false,
+            periodNumber = "2",
+            roomName = "L06",
+            startTime = "${LocalDate.now().toString()}T10:05:00+00:00",
+            endTime = "${LocalDate.now().toString()}T11:05:00+00:00",
+            key = 1192664561,
+            date = LocalDate.now().toString()
+        )
+        lessonsList += Lesson(
+            teacherName = "Mr D Teacher",
+            lessonName = "12B/Ph1",
+            subjectName = "Physics",
+            isAlternativeLesson = false,
+            periodNumber = "3",
+            roomName = "U07",
+            startTime = "${LocalDate.now().toString()}T11:25:00+00:00",
+            endTime = "${LocalDate.now().toString()}T12:25:00+00:00",
+            key = 1157937234,
+            date = LocalDate.now().toString()
+        )
+        lessonsList += Lesson(
+            teacherName = "Miss K Teacher",
+            lessonName = "12B/Ph1",
+            subjectName = "Physics",
+            isAlternativeLesson = false,
+            periodNumber = "4",
+            roomName = "U09",
+            startTime = "${LocalDate.now().toString()}T12:30:00+00:00",
+            endTime = "${LocalDate.now().toString()}T13:30:00+00:00",
+            key = 1157941107,
+            date = LocalDate.now().toString()
+        )
     }
     else {
         if (requestMaker.sessionId == null) {
