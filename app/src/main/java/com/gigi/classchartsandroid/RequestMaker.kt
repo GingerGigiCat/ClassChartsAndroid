@@ -12,18 +12,18 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.toLowerCase
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.room3.AutoMigration
-import androidx.room3.ColumnInfo
-import androidx.room3.Dao
-import androidx.room3.Database
-import androidx.room3.Entity
-import androidx.room3.Insert
-import androidx.room3.OnConflictStrategy.Companion.REPLACE
-import androidx.room3.PrimaryKey
-import androidx.room3.Query
-import androidx.room3.Room
-import androidx.room3.RoomDatabase
-import androidx.room3.Update
+import androidx.room.AutoMigration
+import androidx.room.ColumnInfo
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Entity
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy.Companion.REPLACE
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.Update
 import arrow.core.Either
 import com.gigi.classchartsandroid.MainActivity.HomeworkContentObject
 import com.google.gson.Gson
@@ -100,7 +100,9 @@ data class Lesson(
     @ColumnInfo("start_time") val startTime: String,
     @ColumnInfo("end_time") val endTime: String,
     @PrimaryKey val key: Int,
-    @ColumnInfo("date") val date: String
+    @ColumnInfo("date") val date: String,
+    @ColumnInfo("user_notes") val userNotes: String = "",
+    @ColumnInfo("free_period") val freePeriod: Boolean = false
 )
 
 @Dao

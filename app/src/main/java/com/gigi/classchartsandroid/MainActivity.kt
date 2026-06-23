@@ -106,9 +106,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import androidx.room3.ColumnInfo
-import androidx.room3.Entity
-import androidx.room3.PrimaryKey
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import arrow.core.Either
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 import com.google.gson.Gson
@@ -169,7 +169,10 @@ class MainActivity : ComponentActivity() {
         @ColumnInfo("due_date") val dueDate: String = "",
         @PrimaryKey val id: String = "",
         @ColumnInfo("completion_time") val completionTime: String,
-        @ColumnInfo("attachments") val attachments: String
+        @ColumnInfo("attachments") val attachments: String,
+        @ColumnInfo("user_added") val userAdded: Boolean = false,
+        @ColumnInfo("user_notes") val userNotes: String = "",
+        @ColumnInfo("completion_state") val completionState: Int = 0
     ) : ScreenObject()
 
     @Serializable
