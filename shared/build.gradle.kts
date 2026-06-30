@@ -35,8 +35,7 @@ kotlin {
     }
 
     linuxX64()
-    mingwX64()
-    js()
+    jvm()
 
     // For iOS targets, this is also where you should
     // configure native binary output. For more information, see:
@@ -47,23 +46,7 @@ kotlin {
     // https://developer.android.com/kotlin/multiplatform/migrate
     val xcfName = "sharedKit"
 
-    iosX64 {
-        binaries.framework {
-            baseName = xcfName
-        }
-    }
 
-    iosArm64 {
-        binaries.framework {
-            baseName = xcfName
-        }
-    }
-
-    iosSimulatorArm64 {
-        binaries.framework {
-            baseName = xcfName
-        }
-    }
 
     // Source set declarations.
     // Declaring a target automatically creates a source set with the same name. By default, the
@@ -91,6 +74,7 @@ kotlin {
                 implementation("androidx.appcompat:appcompat:1.3.1")
                 implementation(libs.androidx.room.runtime)
                 implementation(libs.androidx.sqlite.bundled)
+                implementation(libs.androidx.datastore.preferences.core)
 
             }
         }
@@ -117,7 +101,7 @@ kotlin {
                 implementation(libs.androidx.compose.ui.text)
                 implementation(libs.androidx.navigation.compose)
                 implementation(libs.androidx.compose.ui.unit)
-                implementation(libs.androidx.datastore.preferences.core)
+
                 implementation(libs.androidx.compose.animation)
                 implementation(libs.androidx.compose.material3)
                 implementation(libs.material3)

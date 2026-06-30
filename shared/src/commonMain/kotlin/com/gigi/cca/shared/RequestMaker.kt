@@ -28,6 +28,7 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.FormBody
