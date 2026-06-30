@@ -2,6 +2,12 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.android.lint)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.room)
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 kotlin {
@@ -69,21 +75,22 @@ kotlin {
             dependencies {
                 implementation(libs.kotlin.stdlib)
                 // Add KMP dependencies here
-                implementation(libs.androidx.core.ktx)
-                implementation(libs.androidx.lifecycle.runtime.ktx)
-                implementation(libs.androidx.activity.compose)
-                implementation(project.dependencies.platform(libs.androidx.compose.bom))
-                implementation(libs.androidx.ui)
-                implementation(libs.androidx.ui.graphics)
-                implementation(libs.androidx.ui.tooling.preview)
-                implementation(libs.androidx.material3)
-                implementation(libs.material3)
-                implementation(libs.androidx.compose.ui.text)
-                implementation(libs.androidx.navigation.compose)
-                implementation(libs.androidx.compose.ui.unit)
-                implementation(libs.androidx.datastore.preferences.core)
-                implementation(libs.androidx.compose.animation)
-                implementation(libs.androidx.compose.material3)
+
+
+
+
+
+                implementation("com.squareup.okhttp3:okhttp:4.11.0")
+                //implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
+                implementation("com.google.code.gson:gson:2.8.5")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+                implementation("androidx.datastore:datastore-preferences:1.1.7")
+                implementation("androidx.datastore:datastore:1.2.0")
+                implementation("io.arrow-kt:arrow-core:2.0.0")
+                implementation("io.arrow-kt:arrow-fx-coroutines:2.0.0")
+                implementation("androidx.appcompat:appcompat:1.3.1")
+                implementation(libs.androidx.room.runtime)
+                implementation(libs.androidx.sqlite.bundled)
 
             }
         }
@@ -99,6 +106,21 @@ kotlin {
                 // Add Android-specific dependencies here. Note that this source set depends on
                 // commonMain by default and will correctly pull the Android artifacts of any KMP
                 // dependencies declared in commonMain.
+                implementation(libs.androidx.core.ktx)
+                implementation(libs.androidx.lifecycle.runtime.ktx)
+                implementation(libs.androidx.activity.compose)
+                implementation(project.dependencies.platform(libs.androidx.compose.bom))
+                implementation(libs.androidx.ui)
+                implementation(libs.androidx.ui.graphics)
+                implementation(libs.androidx.ui.tooling.preview)
+                implementation(libs.androidx.material3)
+                implementation(libs.androidx.compose.ui.text)
+                implementation(libs.androidx.navigation.compose)
+                implementation(libs.androidx.compose.ui.unit)
+                implementation(libs.androidx.datastore.preferences.core)
+                implementation(libs.androidx.compose.animation)
+                implementation(libs.androidx.compose.material3)
+                implementation(libs.material3)
             }
         }
 

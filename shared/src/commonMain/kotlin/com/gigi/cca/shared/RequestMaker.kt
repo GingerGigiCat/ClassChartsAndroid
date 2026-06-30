@@ -35,7 +35,6 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okio.IOException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
