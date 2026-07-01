@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     kotlin("plugin.serialization") version "1.9.22"
     id("com.google.devtools.ksp")
+    id("org.jetbrains.compose") version "1.11.1"
 }
 
 android {

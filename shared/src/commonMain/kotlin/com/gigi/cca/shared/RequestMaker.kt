@@ -32,6 +32,7 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNull
@@ -101,6 +102,30 @@ data class Lesson(
     @ColumnInfo("user_notes") val userNotes: String = "",
     @ColumnInfo("free_period") val freePeriod: Boolean = false
 )
+
+open class ScreenObject
+
+@Serializable
+object HomeworkListObject : ScreenObject()
+
+@Serializable
+@Entity
+data class HomeworkContentObject(
+    @ColumnInfo("title") val title: String,
+    @ColumnInfo("complete") val complete: Boolean,
+    @ColumnInfo("teacher") val teacher: String,
+    @ColumnInfo("subject") val subject: String,
+    @ColumnInfo("body") val body: String,
+    @ColumnInfo("issue_date") val issueDate: String = "",
+    @ColumnInfo("due_date") val dueDate: String = "",
+    @PrimaryKey val id: String = "",
+    @ColumnInfo("completion_time") val completionTime: String,
+    @ColumnInfo("attachments") val attachments: String,
+    @ColumnInfo("user_added") val userAdded: Boolean = false,
+    @ColumnInfo("user_notes") val userNotes: String = "",
+    @ColumnInfo("completion_state") val completionState: Int = 0
+) : ScreenObject()
+
 
 @Dao
 interface HomeworkDao {

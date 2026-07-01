@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.android.lint)
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room)
+    alias(libs.plugins.jetbrainsCompose)
+    alias(libs.plugins.kotlin.compose)
 }
 
 room {
@@ -34,7 +36,7 @@ kotlin {
         }
     }
 
-    linuxX64()
+    //linuxX64()
     jvm()
 
     // For iOS targets, this is also where you should
@@ -63,7 +65,7 @@ kotlin {
 
 
 
-                implementation("com.squareup.okhttp3:okhttp:4.11.0")
+                //implementation("com.squareup.okhttp3:okhttp:4.11.0")
                 //implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
                 implementation("com.google.code.gson:gson:2.8.5")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
@@ -71,13 +73,15 @@ kotlin {
                 implementation("androidx.datastore:datastore:1.2.0")
                 implementation("io.arrow-kt:arrow-core:2.0.0")
                 implementation("io.arrow-kt:arrow-fx-coroutines:2.0.0")
-                implementation("androidx.appcompat:appcompat:1.3.1")
+                //implementation("androidx.appcompat:appcompat:1.3.1")
                 implementation(libs.androidx.room.runtime)
                 implementation(libs.androidx.sqlite.bundled)
                 implementation(libs.androidx.datastore.preferences.core)
                 implementation(libs.ktor.client.core)
-                implementation("co.touchlab:kermit:2.0.4")
-
+                implementation("co.touchlab:kermit:2.0.4") // Logger
+                implementation(compose.ui)
+                implementation(compose.foundation)
+                implementation(compose.material3)
             }
         }
 
