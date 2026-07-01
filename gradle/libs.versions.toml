@@ -22,6 +22,7 @@ runner = "1.7.0"
 core = "1.7.0"
 room = "2.8.4"
 sqlite = "2.6.2"
+ktor = "3.5.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -53,6 +54,9 @@ kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", versio
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlinTest" }
 androidx-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
 androidx-core = { group = "androidx.test", name = "core", version.ref = "core" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor"}
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor"}
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor"}
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

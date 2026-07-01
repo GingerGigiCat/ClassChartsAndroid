@@ -19,16 +19,24 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import arrow.core.Either
+import co.touchlab.kermit.Logger
 import com.gigi.classchartsandroid.MainActivity.HomeworkContentObject
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.FormBody
@@ -151,19 +159,17 @@ class RequestMaker {
                 .domain("www.classcharts.com")
                 .build()
             ) + theCookies
-            Log.d("mmmcookies", sendCookies.toString())
+            Logger.d(tag="mmmcookies", messageString = sendCookies.toString())
             return sendCookies
         }
 
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-            Log.d("newcookies", cookies.toString())
+            Logger.d(tag="newcookies", messageString=cookies.toString())
             theCookies = cookies
         }
     }
 
-    private val client = OkHttpClient.Builder()
-        .cookieJar(cookieJar)
-        .build()
+    private val client = HttpClient()
 
     val STUDENT_ID = stringPreferencesKey("student_id")
     val STUDENT_DOB = stringPreferencesKey("student_dob")
@@ -241,33 +247,41 @@ class RequestMaker {
             return Success()
         }
 
-        val requestBody = FormBody.Builder()
-            .add("code", id)
-            .add("remember", "true")
-            .add("recaptcha-token", "no-token-available")
-            .add("dob", dob)
-            .build()
+        //val requestBody = FormBody.Builder()
+        //    .add("code", id)
+        //    .add("remember", "true")
+        //    .add("recaptcha-token", "no-token-available")
+        //    .add("dob", dob)
+        //    .build()
 
-        val request = Request.Builder()
-            .url("https://www.classcharts.com/apiv2student/login")
-            .post(requestBody)
-            .build()
+        //val request = HTTPRequestBuilder()
+        //    .url()
+        //    .post(requestBody)
+        //    .build()
 
 
-        client.newCall(request).execute().use { response -> // was an Error here
-            if (!response.isSuccessful) return ErrorNetwork() //throw _root_ide_package_.okio.IOException("Unexpected code $response")
-            studentLoginResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
-            Log.d("RealLoginResponse", studentLoginResponse.toString())
-            try {
-                sessionId =
-                    studentLoginResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
+        val response = client.get("https://www.classcharts.com/apiv2student/login") {
+            url {
+                parameters.append("code", "id")
+                parameters.append("remember", "true")
+                parameters.append("recaptcha-token", "no-token-available")
+                parameters.append("dob", dob)
             }
-            catch (e: Exception) {
-                return ErrorInvalidLogin()
-            }
-            writeId(id)
-            writeDob(dob)
         }
+
+        if (!(response.status.value in 200..299)) return ErrorNetwork() //throw _root_ide_package_.okio.IOException("Unexpected code $response")
+        studentLoginResponse = response.body<JsonObject>()//gson.fromJson(response.bodyAsText(), JsonObject::class)
+        Logger.d(tag="RealLoginResponse", messageString=studentLoginResponse.toString())
+        try {
+            sessionId =
+                studentLoginResponse?.get("meta")?.jsonObject?.get("session_id")?.toString()
+        }
+        catch (e: Exception) {
+            return ErrorInvalidLogin()
+        }
+        writeId(id)
+        writeDob(dob)
+
 
         return Success()
     }
@@ -482,11 +496,11 @@ class RequestMaker {
         val doTheThing: () -> JsonArray? = { client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) null //throw _root_ide_package_.okio.IOException("Unexpected code $response")
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
-            Log.d("HomeworkData", jsonResponse.toString())
+            Logger.d(tag="HomeworkData", messageString=jsonResponse.toString())
             try {
                 jsonResponse.getAsJsonArray("data")
             } catch (e: Error) {
-                Log.e("uh oh in getHomeworks", e.toString())
+                Logger.e(tag="uh oh in getHomeworks", messageString=e.toString())
                 null
             }
         }}
@@ -494,12 +508,12 @@ class RequestMaker {
         try {
             return doTheThing()
         } catch (e: Error) {
-            Log.i("RetryingGetHomeworksError", e.toString())
+            Logger.i(tag="RetryingGetHomeworksError", messageString=e.toString())
             try {
                 runBlocking{login("", "")}
                 return doTheThing()
             } catch (e: Error) {
-                Log.e("GetHomeworksError", e.toString())
+                Logger.e(tag="GetHomeworksError", messageString=e.toString())
                 return null
             }
         }

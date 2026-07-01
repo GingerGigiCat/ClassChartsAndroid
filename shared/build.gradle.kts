@@ -75,6 +75,8 @@ kotlin {
                 implementation(libs.androidx.room.runtime)
                 implementation(libs.androidx.sqlite.bundled)
                 implementation(libs.androidx.datastore.preferences.core)
+                implementation(libs.ktor.client.core)
+                implementation("co.touchlab:kermit:2.0.4")
 
             }
         }
@@ -105,6 +107,7 @@ kotlin {
                 implementation(libs.androidx.compose.animation)
                 implementation(libs.androidx.compose.material3)
                 implementation(libs.material3)
+                implementation(libs.ktor.client.okhttp)
             }
         }
 
@@ -123,6 +126,7 @@ kotlin {
                 // part of KMP’s default source set hierarchy. Note that this source set depends
                 // on common by default and will correctly pull the iOS artifacts of any
                 // KMP dependencies declared in commonMain.
+                implementation(libs.ktor.client.darwin)
             }
         }
     }
