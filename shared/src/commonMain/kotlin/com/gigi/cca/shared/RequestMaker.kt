@@ -559,7 +559,7 @@ class RequestMaker {
         onFinish()
     }
 
-    fun listLessons(date: LocalDate): Either<MutableList<Lesson>, ErrorType> {
+    suspend fun listLessons(date: LocalDate): Either<MutableList<Lesson>, ErrorType> {
         var lessonList = mutableListOf<Lesson>()
 
         if (sessionId == "demo") {
@@ -570,44 +570,40 @@ class RequestMaker {
             lessonList += Lesson(teacherName="Miss K Teacher", lessonName="12B/Ph1", subjectName="Physics", isAlternativeLesson=false, periodNumber="4", roomName="U09", startTime="${LocalDate.now().toString()}T12:30:00+00:00", endTime="${LocalDate.now().toString()}T13:30:00+00:00", key=1157941107, date=LocalDate.now().toString())
         }
         else {
-            val url =
-                "https://www.classcharts.com/apiv2student/timetable/$studentId".toHttpUrlOrNull()!!
-                    .newBuilder()
-                    .addQueryParameter("date", date.toString())
-                    .build()
-
-            val request = Request.Builder()
-                .url(url)
-                .header("Authorization", "Basic $sessionId")
-                .build()
-
-            runBlocking { login("", "") }
-
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return Either.Right(ErrorNetwork())
-                val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
-                for (i in jsonResponse.getAsJsonArray("data")) {
-                    val l = i.asJsonObject
-                    lessonList += Lesson(
-                        teacherName = l.get("teacher_name")?.toString()?.replace("\"", "")
-                            ?: "Mx. Teacher",
-                        lessonName = l.get("lesson_name")?.toString()?.replace("\"", "")
-                            ?: "Lesson",
-                        subjectName = l.get("subject_name")?.toString()?.replace("\"", "")
-                            ?: "Subject",
-                        isAlternativeLesson = l.get("is_alternative_lesson")?.toString()
-                            ?.toBoolean() ?: false,
-                        periodNumber = l.get("period_number")?.toString()?.replace("\"", "") ?: "0",
-                        roomName = l.get("room_name")?.toString()?.replace("\"", "") ?: "Room",
-                        startTime = l.get("start_time")?.toString()?.replace("\"", "")
-                            ?: "1970-01-01T00:00:00+00:00",
-                        endTime = l.get("end_time")?.toString()?.replace("\"", "")
-                            ?: "1970-01-01T00:00:00+00:00",
-                        key = l.get("key")?.toString()?.toInt() ?: 0,
-                        date = l.get("date")?.toString()?.replace("\"", "")?: "1970-01-01"
-                    )
+            val response = client.get("https://www.classcharts.com/apiv2student/timetable/$studentId") {
+                url {
+                    parameters.append("date", date.toString())
+                    headers.append("Authorization", "Basic $sessionId")
                 }
             }
+
+            login("", "")
+
+
+            if (response.status.value !in 200..299) return Either.Right(ErrorNetwork())
+            val jsonResponse = response.body<JsonObject>()
+            for (i in jsonResponse.get("data")?.jsonArray?: mutableListOf<JsonObject>()) {
+                val l = i.jsonObject
+                lessonList += Lesson(
+                    teacherName = l.get("teacher_name")?.toString()?.replace("\"", "")
+                        ?: "Mx. Teacher",
+                    lessonName = l.get("lesson_name")?.toString()?.replace("\"", "")
+                        ?: "Lesson",
+                    subjectName = l.get("subject_name")?.toString()?.replace("\"", "")
+                        ?: "Subject",
+                    isAlternativeLesson = l.get("is_alternative_lesson")?.toString()
+                        ?.toBoolean() ?: false,
+                    periodNumber = l.get("period_number")?.toString()?.replace("\"", "") ?: "0",
+                    roomName = l.get("room_name")?.toString()?.replace("\"", "") ?: "Room",
+                    startTime = l.get("start_time")?.toString()?.replace("\"", "")
+                        ?: "1970-01-01T00:00:00+00:00",
+                    endTime = l.get("end_time")?.toString()?.replace("\"", "")
+                        ?: "1970-01-01T00:00:00+00:00",
+                    key = l.get("key")?.toString()?.toInt() ?: 0,
+                    date = l.get("date")?.toString()?.replace("\"", "")?: "1970-01-01"
+                )
+            }
+
         }
         lessonDao.insertDay(lessonList)
         return Either.Left(lessonList)
