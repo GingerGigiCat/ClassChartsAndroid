@@ -162,8 +162,6 @@ class ErrorWaiting : ErrorType()
 
 
 class RequestMaker {
-
-    val gson = Gson()
     var sessionId: String? = null
     var studentId: String? = null
     var studentDob: String? = null
@@ -349,10 +347,19 @@ class RequestMaker {
         )
     }
 
+    val nothingimportantignorethisitscommentedoutbecauseitwasntbeingused = """
     fun studentPing(): Boolean { // Updates cookies maybe
-        val requestBody = FormBody.Builder()
-            .add("include_data", "true")
-            .build()
+        val response = client.get("https://www.classcharts.com/apiv2student/ping") {
+            url {
+                parameters.append("include_data", "true")
+                headers.append("Authorization", "Basic $sessionId")
+                
+            }
+        }
+        
+        //val requestBody = FormBody.Builder()
+        //    .add("include_data", "true")
+        //    .build()
 
         val request = Request.Builder()
             .url("https://www.classcharts.com/apiv2student/ping")
@@ -361,7 +368,7 @@ class RequestMaker {
             .build()
 
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
+            if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code {DOLLARSIGNbutitwasinterferingwiththecommentingout}response")
             val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
             try {
                 //sessionId = jsonResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
@@ -373,9 +380,57 @@ class RequestMaker {
             }
         }
     }
+    """
 
+    suspend fun getHomeworks(startDate: LocalDate = LocalDate.now().minusDays(45),
+                             endDate: LocalDate = LocalDate.now().plusDays(366)): JsonArray? {
+        // To get current date: LocalDate.now()
 
-    fun refreshHomeworkList(onlyIncomplete: Boolean, linkStyle: TextLinkStyles, colorScheme: ColorScheme, onFinish: () -> Unit = {}) {
+        val response = client.get("https://www.classcharts.com/apiv2student/homeworks/$studentId") {
+
+        }
+
+        //val url = "https://www.classcharts.com/apiv2student/homeworks/$studentId".toHttpUrlOrNull()!!
+        //    .newBuilder()
+        //    .addQueryParameter("display_date", "due_date")
+        //    .addQueryParameter("from", startDate.toString())
+        //    .addQueryParameter("to", endDate.toString())
+        //    .build()
+
+        //val request = Request.Builder()
+        //    .url(url)
+        //    .header("Authorization", "Basic $sessionId")
+        //    .build()
+
+        runBlocking{login("", "")}
+
+        val doTheThing: () -> JsonArray? = { client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) null //throw _root_ide_package_.okio.IOException("Unexpected code $response")
+            val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
+            Logger.d(tag="HomeworkData", messageString=jsonResponse.toString())
+            try {
+                jsonResponse.getAsJsonArray("data")
+            } catch (e: Error) {
+                Logger.e(tag="uh oh in getHomeworks", messageString=e.toString())
+                null
+            }
+        }}
+
+        try {
+            return doTheThing()
+        } catch (e: Error) {
+            Logger.i(tag="RetryingGetHomeworksError", messageString=e.toString())
+            try {
+                runBlocking{login("", "")}
+                return doTheThing()
+            } catch (e: Error) {
+                Logger.e(tag="GetHomeworksError", messageString=e.toString())
+                return null
+            }
+        }
+    }
+
+    suspend fun refreshHomeworkList(onlyIncomplete: Boolean, linkStyle: TextLinkStyles, colorScheme: ColorScheme, onFinish: () -> Unit = {}) {
         val homeworksList = mutableListOf<Homework>()
         if (sessionId == "demo") {
             homeworksList += Homework(
@@ -384,13 +439,13 @@ class RequestMaker {
                 teacher = "Mr M Teacher",
                 subject = "Music",
                 completionTime = "5 hours",
-                body = AnnotatedString.fromHtml("\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n",
-                    linkStyles = TextLinkStyles(
+                body = htmlToAnnotatedString("\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n",
+                    style = HtmlStyle(TextLinkStyles(
                     SpanStyle(
                         textDecoration = TextDecoration.Underline,
                         color = colorScheme.primary
                     )
-                )),
+                ))),
                 rawBody = "\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n",
                 issueDate = LocalDate.now().minusDays(8),
                 dueDate = LocalDate.now(),
@@ -430,12 +485,12 @@ class RequestMaker {
             </ol>
             """
             homeworksList += Homework(title="Music", complete=false, teacher="Mr M Teacher", subject="Music", completionTime="2 hours",
-                body=AnnotatedString.fromHtml(rawText,
-                    linkStyles = TextLinkStyles(
+                body=htmlToAnnotatedString(rawText,
+                    style = HtmlStyle(TextLinkStyles(
                 SpanStyle(
                     textDecoration = TextDecoration.Underline,
                     color = colorScheme.primary
-                ))),
+                )))),
                 rawBody=rawText, issueDate=LocalDate.now().minusDays(6), dueDate=LocalDate.now().plusDays(4), id="736253715", attachments=mutableListOf())
         }
         else {
@@ -464,25 +519,20 @@ class RequestMaker {
                         }
 
                         homeworksList += Homework(
-                            title = (if (i.asJsonObject.get("title") !is JsonNull) {i.asJsonObject.get("title").asString} else ""),
+                            title = (i.asJsonObject.get("title").asString)?: "",
                             complete = isComplete,
-                            teacher = (if (i.asJsonObject.get("teacher") !is JsonNull) {i.asJsonObject.get("teacher").asString} else ""),
-                            subject = (if (i.asJsonObject.get("subject") !is JsonNull) {i.asJsonObject.get("subject").asString} else ""),
+                            teacher = (i.asJsonObject.get("teacher").asString?: ""),
+                            subject = (i.asJsonObject.get("subject").asString?: ""),
                             completionTime = (
-                                    if (i.asJsonObject.get("completion_time_value") !is JsonNull) {
-                                        if (i.asJsonObject.get("completion_time_value").asString != "") {
-                                            i.asJsonObject.get("completion_time_value").asString + " " +
-                                                (if (i.asJsonObject.get("completion_time_unit") !is JsonNull) {
-                                                    i.asJsonObject.get("completion_time_unit").asString
-                                                } else "")
-                                        } else ""
-                                    } else "")
+                                    if (i.asJsonObject.get("completion_time_value").asString != "") {
+                                            i.asJsonObject.get("completion_time_value").asString + " " + i.asJsonObject.get("completion_time_unit").asString
+                                        } else "")
                             ,
-                            body = AnnotatedString.fromHtml(
-                                (if (i.asJsonObject.get("description") !is JsonNull) {i.asJsonObject.get("description").asString} else "No description"),
-                                linkStyles = linkStyle
+                            body = htmlToAnnotatedString(
+                                (i.asJsonObject.get("description").asString?: "No description"),
+                                style = HtmlStyle(linkStyle)
                             ),
-                            rawBody = (if (i.asJsonObject.get("description") !is JsonNull) {i.asJsonObject.get("description").asString} else "No description"),
+                            rawBody = (i.asJsonObject.get("description").asString} else "No description"),
                             issueDate = LocalDate.parse((if (i.asJsonObject.get("issue_date") !is JsonNull) {i.asJsonObject.get("issue_date").asString} else "1990-01-01")),
                             dueDate = LocalDate.parse((if (i.asJsonObject.get("due_date") !is JsonNull) {i.asJsonObject.get("due_date").asString} else "2200-01-01")),
                             id = i.asJsonObject.get("status")!!.asJsonObject.get("id").asString?:UUID.randomUUID().toString(),
@@ -500,49 +550,7 @@ class RequestMaker {
         }
     }
 
-    fun getHomeworks(startDate: LocalDate = LocalDate.now().minusDays(45),
-                     endDate: LocalDate = LocalDate.now().plusDays(366)): JsonArray? {
-        // To get current date: LocalDate.now()
 
-        val url = "https://www.classcharts.com/apiv2student/homeworks/$studentId".toHttpUrlOrNull()!!
-            .newBuilder()
-            .addQueryParameter("display_date", "due_date")
-            .addQueryParameter("from", startDate.toString())
-            .addQueryParameter("to", endDate.toString())
-            .build()
-
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Basic $sessionId")
-            .build()
-
-        runBlocking{login("", "")}
-
-        val doTheThing: () -> JsonArray? = { client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) null //throw _root_ide_package_.okio.IOException("Unexpected code $response")
-            val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
-            Logger.d(tag="HomeworkData", messageString=jsonResponse.toString())
-            try {
-                jsonResponse.getAsJsonArray("data")
-            } catch (e: Error) {
-                Logger.e(tag="uh oh in getHomeworks", messageString=e.toString())
-                null
-            }
-        }}
-
-        try {
-            return doTheThing()
-        } catch (e: Error) {
-            Logger.i(tag="RetryingGetHomeworksError", messageString=e.toString())
-            try {
-                runBlocking{login("", "")}
-                return doTheThing()
-            } catch (e: Error) {
-                Logger.e(tag="GetHomeworksError", messageString=e.toString())
-                return null
-            }
-        }
-    }
 
     fun tickHomework(id: String? = studentId, onFinish: () -> Unit = {}) {
         val url = "https://www.classcharts.com/apiv2student/homeworkticked/$id".toHttpUrlOrNull()!!
