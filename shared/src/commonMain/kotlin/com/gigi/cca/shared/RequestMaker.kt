@@ -1,10 +1,10 @@
 package com.gigi.cca.shared
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
-import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -19,12 +19,12 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import arrow.core.Either
+import be.digitalia.compose.htmlconverter.HtmlStyle
+import be.digitalia.compose.htmlconverter.htmlToAnnotatedString
 import co.touchlab.kermit.Logger
 import com.gigi.classchartsandroid.MainActivity.HomeworkContentObject
 import com.google.gson.Gson
 import com.google.gson.JsonArray
-import com.google.gson.JsonNull
-import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -324,7 +324,7 @@ class RequestMaker {
             teacher = homeworkContentObj.teacher,
             subject = homeworkContentObj.subject,
             completionTime = homeworkContentObj.completionTime,
-            body = AnnotatedString.fromHtml(homeworkContentObj.body, linkStyles = linkStyle),
+            body = htmlToAnnotatedString(homeworkContentObj.body, style = HtmlStyle(linkStyle)),
             rawBody = homeworkContentObj.body,
             issueDate = LocalDate.parse(homeworkContentObj.issueDate),
             dueDate = LocalDate.parse(homeworkContentObj.dueDate),

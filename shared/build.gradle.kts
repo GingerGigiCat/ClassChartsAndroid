@@ -24,7 +24,7 @@ kotlin {
                 minorApiLevel = 1
             }
         }
-        minSdk = 24
+        minSdk = 26
 
         withHostTestBuilder {
         }
@@ -82,6 +82,7 @@ kotlin {
                 implementation(compose.ui)
                 implementation(compose.foundation)
                 implementation(compose.material3)
+                implementation("be.digitalia.compose.htmlconverter:htmlconverter:1.1.1")
             }
         }
 
