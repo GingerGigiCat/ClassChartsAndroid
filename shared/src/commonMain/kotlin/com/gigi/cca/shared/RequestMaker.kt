@@ -1,6 +1,4 @@
 package com.gigi.cca.shared
-import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -22,28 +20,25 @@ import arrow.core.Either
 import be.digitalia.compose.htmlconverter.HtmlStyle
 import be.digitalia.compose.htmlconverter.htmlToAnnotatedString
 import co.touchlab.kermit.Logger
-import com.gigi.classchartsandroid.MainActivity.HomeworkContentObject
-import com.google.gson.Gson
-import com.google.gson.JsonArray
-import com.google.gson.reflect.TypeToken
+//import com.google.gson.Gson
+//import com.google.gson.JsonArray
+//import com.google.gson.reflect.TypeToken
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.parameters
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import okhttp3.Cookie
 import okhttp3.CookieJar
-import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
@@ -383,12 +378,8 @@ class RequestMaker {
     """
 
     suspend fun getHomeworks(startDate: LocalDate = LocalDate.now().minusDays(45),
-                             endDate: LocalDate = LocalDate.now().plusDays(366)): JsonArray? {
+                             endDate: LocalDate = LocalDate.now().plusDays(366)): JsonObject? {
         // To get current date: LocalDate.now()
-
-        val response = client.get("https://www.classcharts.com/apiv2student/homeworks/$studentId") {
-
-        }
 
         //val url = "https://www.classcharts.com/apiv2student/homeworks/$studentId".toHttpUrlOrNull()!!
         //    .newBuilder()
@@ -402,32 +393,21 @@ class RequestMaker {
         //    .header("Authorization", "Basic $sessionId")
         //    .build()
 
-        runBlocking{login("", "")}
+        login("", "")
 
-        val doTheThing: () -> JsonArray? = { client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) null //throw _root_ide_package_.okio.IOException("Unexpected code $response")
-            val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
-            Logger.d(tag="HomeworkData", messageString=jsonResponse.toString())
-            try {
-                jsonResponse.getAsJsonArray("data")
-            } catch (e: Error) {
-                Logger.e(tag="uh oh in getHomeworks", messageString=e.toString())
-                null
-            }
-        }}
+        val response = client.get("https://www.classcharts.com/apiv2student/homeworks/$studentId") {
+            url {
+                parameters.append("display_date", "due_date")
+                parameters.append("from", startDate.toString())
+                parameters.append("to", endDate.toString())
 
-        try {
-            return doTheThing()
-        } catch (e: Error) {
-            Logger.i(tag="RetryingGetHomeworksError", messageString=e.toString())
-            try {
-                runBlocking{login("", "")}
-                return doTheThing()
-            } catch (e: Error) {
-                Logger.e(tag="GetHomeworksError", messageString=e.toString())
-                return null
+                headers.append("Authorization", "Basic $sessionId")
             }
         }
+
+        if (!(response.status.value in 200..299)) return null
+
+        return response.body<JsonObject>().get("data")?.jsonObject
     }
 
     suspend fun refreshHomeworkList(onlyIncomplete: Boolean, linkStyle: TextLinkStyles, colorScheme: ColorScheme, onFinish: () -> Unit = {}) {
@@ -498,44 +478,45 @@ class RequestMaker {
             if (homeworks != null) {
                 for (i in homeworks) {
                     val isComplete =
-                        yesnoToTruefalse(i.asJsonObject.get("status")!!.asJsonObject.get("ticked")!!.asString)
+                        yesnoToTruefalse(i.value.jsonObject.get("status")?.jsonObject?.get("ticked")?.toString()?: "no")
                     if (true) { //(Want everything in the database) //if (!onlyIncomplete || !isComplete) {
                         var attachments: MutableList<Attachment> = mutableListOf()
 
-                        for (i in i.asJsonObject.getAsJsonArray("validated_links")) {
+
+                        for (j in i.value.jsonObject.get("validated_links")?.jsonArray?: mutableListOf<JsonObject>()) {
                             attachments += Attachment(
-                                name = i.asJsonObject.get("link").asString?: "unknown-site.com",
-                                link = i.asJsonObject.get("link").asString?: "https://example.com",
+                                name = j.jsonObject.get("link").toString()?: "unknown-site.com",
+                                link = j.jsonObject.get("link").toString()?: "https://example.com",
                                 isFile = false
                             )
                         }
 
-                        for (i in i.asJsonObject.getAsJsonArray("validated_attachments")) {
+                        for (l in i.value.jsonObject.get("validated_attachments")?.jsonArray?: mutableListOf<JsonObject>()) {
                             attachments += Attachment(
-                                name = i.asJsonObject.get("filename").asString?: "UnknownFile",
-                                link = i.asJsonObject.get("file").asString?: "https://example.com",
+                                name = l.jsonObject.get("filename").toString()?: "UnknownFile",
+                                link = l.jsonObject.get("file").toString()?: "https://example.com",
                                 isFile = true
                             )
                         }
 
                         homeworksList += Homework(
-                            title = (i.asJsonObject.get("title").asString)?: "",
+                            title = (i.value.jsonObject.get("title")?.toString())?: "",
                             complete = isComplete,
-                            teacher = (i.asJsonObject.get("teacher").asString?: ""),
-                            subject = (i.asJsonObject.get("subject").asString?: ""),
+                            teacher = (i.value.jsonObject.get("teacher")?.toString()?: ""),
+                            subject = (i.value.jsonObject.get("subject")?.toString()?: ""),
                             completionTime = (
-                                    if (i.asJsonObject.get("completion_time_value").asString != "") {
-                                            i.asJsonObject.get("completion_time_value").asString + " " + i.asJsonObject.get("completion_time_unit").asString
+                                    if (i.value.jsonObject.get("completion_time_value")?.toString() != "") {
+                                            i.value.jsonObject.get("completion_time_value")?.toString() + " " + i.value.jsonObject.get("completion_time_unit")?.toString()
                                         } else "")
                             ,
                             body = htmlToAnnotatedString(
-                                (i.asJsonObject.get("description").asString?: "No description"),
+                                (i.value.jsonObject.get("description")?.toString()?: "No description"),
                                 style = HtmlStyle(linkStyle)
                             ),
-                            rawBody = (i.asJsonObject.get("description").asString} else "No description"),
-                            issueDate = LocalDate.parse((if (i.asJsonObject.get("issue_date") !is JsonNull) {i.asJsonObject.get("issue_date").asString} else "1990-01-01")),
-                            dueDate = LocalDate.parse((if (i.asJsonObject.get("due_date") !is JsonNull) {i.asJsonObject.get("due_date").asString} else "2200-01-01")),
-                            id = i.asJsonObject.get("status")!!.asJsonObject.get("id").asString?:UUID.randomUUID().toString(),
+                            rawBody = (i.value.jsonObject.get("description")?.toString()?: "No description"),
+                            issueDate = LocalDate.parse(i.value.jsonObject.get("issue_date")?.toString()?: "1990-01-01"),
+                            dueDate = LocalDate.parse(i.value.jsonObject.get("due_date")?.toString()?: "2200-01-01"),
+                            id = i.value.jsonObject.get("status")?.jsonObject?.get("id")?.toString()?:UUID.randomUUID().toString(),
                             attachments = attachments
                         )
                     }
@@ -552,20 +533,29 @@ class RequestMaker {
 
 
 
-    fun tickHomework(id: String? = studentId, onFinish: () -> Unit = {}) {
-        val url = "https://www.classcharts.com/apiv2student/homeworkticked/$id".toHttpUrlOrNull()!!
-            .newBuilder()
-            .addQueryParameter("studentId", studentId)
-            .build()
-
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("Authorization", "Basic $sessionId")
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
+    suspend fun tickHomework(id: String? = studentId, onFinish: () -> Unit = {}) {
+        val response = client.get("https://www.classcharts.com/apiv2student/homeworkticked/$id") {
+            url {
+                parameters.append("studentId", studentId?: "")
+                headers.append("Authorization", "Basic $sessionId")
+            }
         }
+
+        if (response.status.value in 200..299) {}//do something to convey an error and maybe have a queue of operations yet to be performed, i'm not sure yet
+
+        //val url = "https://www.classcharts.com/apiv2student/homeworkticked/$id".toHttpUrlOrNull()!!
+        //    .newBuilder()
+        //    .addQueryParameter("studentId", studentId)
+        //    .build()
+
+        //val request = Request.Builder()
+        //    .url(url)
+        //    .addHeader("Authorization", "Basic $sessionId")
+        //    .build()
+
+        //client.newCall(request).execute().use { response ->
+        //    if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code $response")
+        //}
         onFinish()
     }
 
