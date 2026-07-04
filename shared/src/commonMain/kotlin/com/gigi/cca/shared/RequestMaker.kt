@@ -7,6 +7,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.room.ColumnInfo
+import androidx.room.ConstructedBy
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -16,6 +17,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.RoomDatabaseConstructor
 import arrow.core.Either
 import be.digitalia.compose.htmlconverter.HtmlStyle
 import be.digitalia.compose.htmlconverter.htmlToAnnotatedString
@@ -31,8 +33,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import okhttp3.Cookie
@@ -46,19 +51,6 @@ import java.time.LocalDate
 import java.util.Timer
 import java.util.UUID
 
-fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith { // borrowed from stackoverflow, converts json to a kotlin friendly object
-    when (val value = this[it])
-    {
-        is JSONArray ->
-        {
-            val map = (0 until value.length()).associate { Pair(it.toString(), value[it]) }
-            JSONObject(map).toMap().values.toList()
-        }
-        is JSONObject -> value.toMap()
-        JSONObject.NULL -> null
-        else            -> value
-    }
-}
 
 @Serializable
 data class Attachment(
@@ -141,9 +133,15 @@ interface LessonDao {
 }
 
 @Database(entities = [HomeworkContentObject::class, Lesson::class], version = 1, exportSchema = false)
+@ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun homeworkDao(): HomeworkDao
     abstract fun lessonDao(): LessonDao
+}
+
+@Suppress("KotlinNoActualForExpect")
+expect object AppDatabaseConstructor : RoomDatabaseConstructor<AppDatabase> {
+    override fun initialize(): AppDatabase
 }
 
 
@@ -322,8 +320,7 @@ class RequestMaker {
             issueDate = LocalDate.parse(homeworkContentObj.issueDate),
             dueDate = LocalDate.parse(homeworkContentObj.dueDate),
             id = homeworkContentObj.id,
-            attachments = Gson().fromJson(homeworkContentObj.attachments,
-                object: TypeToken<MutableList<Attachment>>() {}.type)
+            attachments = Json.decodeFromString(homeworkContentObj.attachments)
         )
     }
 
@@ -338,7 +335,7 @@ class RequestMaker {
             issueDate = homework.issueDate.toString(),
             dueDate = homework.dueDate.toString(),
             id = homework.id!!,
-            attachments = Gson().toJson(homework.attachments)
+            attachments = Json.encodeToString(homework.attachments)
         )
     }
 

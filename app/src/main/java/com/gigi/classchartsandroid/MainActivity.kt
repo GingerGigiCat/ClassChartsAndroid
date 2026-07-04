@@ -139,7 +139,7 @@ import kotlin.math.min
 // figure out why the calendar is laggy to open
 // implement loading wheels and nice error handling
 // Export your timetable and then import to a friend? because storing friend's classcharts code directly is kind of a bit very insecure
-// Animations! like for ticking off a homework so it doesn't just abruptly disappear
+// Animations! like for ticking off a homework so it doesn't just abruptly disappear DONE
 // Make opening microsoft documents not crash it
 // Login with microsoft??
 // Make the timetable show free periods?
