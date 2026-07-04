@@ -1,15 +1,19 @@
 package com.gigi.cca.shared
 
 import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.gigi.classchartsandroid.MainActivity
 
 actual fun platform() = "Android"
 
-fun getDatabaseBuilder(context: Context): RoomDatabase.Builder<AppDatabase> {
-    val appContext = context.applicationContext
+actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
+    val appContext = MainActivity.instance
     return Room.databaseBuilder<AppDatabase>(
-        context = context.applicationContext,
+        context = appContext,
         name = appContext.getDatabasePath("main.db").absolutePath
     )
 }
+

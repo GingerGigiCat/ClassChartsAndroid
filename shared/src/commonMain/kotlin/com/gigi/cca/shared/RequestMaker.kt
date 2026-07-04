@@ -18,6 +18,7 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import arrow.core.Either
 import be.digitalia.compose.htmlconverter.HtmlStyle
 import be.digitalia.compose.htmlconverter.htmlToAnnotatedString
@@ -29,6 +30,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.http.parameters
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -139,11 +142,19 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun lessonDao(): LessonDao
 }
 
-@Suppress("KotlinNoActualForExpect")
+@Suppress("KotlinNoActualForExpect") // actuals given by compiler
 expect object AppDatabaseConstructor : RoomDatabaseConstructor<AppDatabase> {
     override fun initialize(): AppDatabase
 }
 
+expect fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase>
+
+fun getRoomDatabase(): AppDatabase {
+    return getDatabaseBuilder()
+        .setDriver(BundledSQLiteDriver())
+        .setQueryCoroutineContext(Dispatchers.IO)
+        .build()
+}
 
 open class ErrorType
 
@@ -191,12 +202,14 @@ class RequestMaker {
     val STUDENT_DOB = stringPreferencesKey("student_dob")
     val LOGIN_SUCCESS = booleanPreferencesKey("login_success")
 
-    val roomDb = Room.databaseBuilder(
-        MainActivity.instance,
-        AppDatabase::class.java,
-        "maindb")
-        .allowMainThreadQueries()
-        .build()
+    //val roomDb = Room.databaseBuilder(
+    //    MainActivity.instance,
+    //    AppDatabase::class.java,
+    //    "maindb")
+    //    .allowMainThreadQueries()
+    //    .build()
+
+    val roomDb = getRoomDatabase()
     val homeworkDao = roomDb.homeworkDao()
     val lessonDao = roomDb.lessonDao()
 

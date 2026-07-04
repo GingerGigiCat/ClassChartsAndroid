@@ -67,6 +67,7 @@ kotlin {
 
                 //implementation("com.squareup.okhttp3:okhttp:4.11.0")
                 //implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
+                implementation("me.sujanpoudel.multiplatform.utils:multiplatform-paths:0.2.2")
                 implementation("com.google.code.gson:gson:2.8.5")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
                 implementation("androidx.datastore:datastore-preferences:1.1.7")
@@ -113,6 +114,7 @@ kotlin {
                 implementation(libs.androidx.compose.material3)
                 implementation(libs.material3)
                 implementation(libs.ktor.client.okhttp)
+                implementation(project(":app"))
             }
         }
 
