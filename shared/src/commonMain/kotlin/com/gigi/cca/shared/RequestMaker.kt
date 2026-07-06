@@ -46,10 +46,6 @@ import kotlinx.serialization.json.jsonObject
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.Request
-import org.json.JSONArray
-import org.json.JSONObject
 import java.time.LocalDate
 import java.util.Timer
 import java.util.UUID
@@ -116,6 +112,16 @@ data class HomeworkContentObject(
     @ColumnInfo("completion_state") val completionState: Int = 0
 ) : ScreenObject()
 
+@Serializable
+@Entity
+data class UserInfo(
+    @PrimaryKey val id: Int = 0,
+    @ColumnInfo("student_id") val studentId: String,
+    @ColumnInfo("student_dob") val studentDob: String,
+    @ColumnInfo("valid_login") val validLogin: Boolean,
+    @ColumnInfo("last_online") val lastOnline: String
+)
+
 
 @Dao
 interface HomeworkDao {
@@ -135,11 +141,30 @@ interface LessonDao {
     fun insertDay(lessons: MutableList<Lesson>)
 }
 
+@Dao
+interface UserDao {
+    @Query("SELECT * FROM userinfo WHERE id = :id")
+    fun getUserInfo(id: Int = 0): UserInfo
+
+    @Query("UPDATE userinfo SET student_id = :studentId WHERE id == :id")
+    fun setStudentId(studentId: String, id: Int = 0)
+
+    @Query("UPDATE userinfo SET student_dob = :studentDob WHERE id == :id")
+    fun setStudentDob(studentDob: String, id: Int = 0)
+
+    @Query("UPDATE userinfo SET valid_login = :validLogin WHERE id == :id")
+    fun setValidLogin(validLogin: Boolean, id: Int = 0)
+
+    @Query("UPDATE userinfo SET last_online = :lastOnline WHERE id == :id")
+    fun setLastOnline(lastOnline: String, id: Int = 0)
+}
+
 @Database(entities = [HomeworkContentObject::class, Lesson::class], version = 1, exportSchema = false)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun homeworkDao(): HomeworkDao
     abstract fun lessonDao(): LessonDao
+    abstract fun userDao(): UserDao
 }
 
 @Suppress("KotlinNoActualForExpect") // actuals given by compiler
@@ -212,45 +237,8 @@ class RequestMaker {
     val roomDb = getRoomDatabase()
     val homeworkDao = roomDb.homeworkDao()
     val lessonDao = roomDb.lessonDao()
+    val userDao = roomDb.userDao()
 
-
-    fun idFlow(): Flow<String> = MainActivity.instance.appDataStore.data.map { preferences ->
-        preferences[STUDENT_ID] ?: ""
-    }
-
-    fun dobFlow(): Flow<String> = MainActivity.instance.appDataStore.data.map { preferences ->
-        preferences[STUDENT_DOB] ?: ""
-    }
-
-    fun successFlow(): Flow<Boolean> = MainActivity.instance.appDataStore.data.map { preferences ->
-        preferences[LOGIN_SUCCESS] ?: false
-    }
-
-    suspend fun writeId(id: String) {
-        MainActivity.instance.appDataStore.updateData {
-            it.toMutablePreferences().also { preferences ->
-                preferences[STUDENT_ID] = id
-                studentId = id
-            }
-        }
-    }
-
-    suspend fun writeDob(dob: String) {
-        MainActivity.instance.appDataStore.updateData {
-            it.toMutablePreferences().also { preferences ->
-                preferences[STUDENT_DOB] = dob
-                studentDob = dob
-            }
-        }
-    }
-
-    suspend fun writeSuceess(success: Boolean) {
-        MainActivity.instance.appDataStore.updateData {
-            it.toMutablePreferences().also { preferences ->
-                preferences[LOGIN_SUCCESS] = success
-            }
-        }
-    }
 
     constructor() {
 
@@ -260,19 +248,20 @@ class RequestMaker {
     suspend fun login(id: String? = null, dob: String? = null): ErrorType {
         var id: String = id?: ""
         var dob: String = dob?: ""
+        val userInfo = userDao.getUserInfo()
         if (id == "") {
             // Log.d("DataStoredID", idFlow().first())
-            id = idFlow().first()
+            id = userInfo.studentId
         }
         if (dob == "") {
-            dob = dobFlow().first()
+            dob = userInfo.studentDob
         }
         //id = "demo"
 
         if (id.lowercase() == "demo") {
             sessionId = "demo"
-            writeId("demo")
-            writeDob(dob)
+            userDao.setStudentId("demo")
+            userDao.setStudentDob(dob)
             return Success()
         }
 
@@ -308,10 +297,10 @@ class RequestMaker {
         catch (e: Exception) {
             return ErrorInvalidLogin()
         }
-        writeId(id)
-        writeDob(dob)
+        userDao.setStudentId(id)
+        userDao.setStudentDob(dob)
 
-
+        userDao.setValidLogin(true)
         return Success()
     }
 
