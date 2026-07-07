@@ -28,6 +28,7 @@ import co.touchlab.kermit.Logger
 //import com.google.gson.reflect.TypeToken
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.get
 import io.ktor.http.parameters
 import kotlinx.coroutines.Dispatchers
@@ -43,9 +44,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import okhttp3.Cookie
-import okhttp3.CookieJar
-import okhttp3.HttpUrl
 import java.time.LocalDate
 import java.util.Timer
 import java.util.UUID
@@ -60,7 +58,7 @@ data class Attachment(
 
 data class Homework(
     val title: String,
-    val complete: Boolean,
+    var complete: Boolean,
     val teacher: String,
     val subject: String,
     val completionTime: String = "no time",
@@ -200,7 +198,7 @@ class RequestMaker {
     var l_name: String = ""
     val timer = Timer()
 
-    val cookieJar = object: CookieJar {
+    val cookieJarbutnolongerimportantbecausenomoreokhttp = """object: CookieJar {
         var theCookies: List<Cookie> = listOf<Cookie>()
 
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
@@ -220,8 +218,11 @@ class RequestMaker {
             theCookies = cookies
         }
     }
+    """
 
-    private val client = HttpClient()
+    private val client = HttpClient() {
+        install(HttpCookies)
+    }
 
     val STUDENT_ID = stringPreferencesKey("student_id")
     val STUDENT_DOB = stringPreferencesKey("student_dob")

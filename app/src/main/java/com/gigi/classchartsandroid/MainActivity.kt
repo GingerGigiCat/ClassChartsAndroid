@@ -66,6 +66,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.setSelectedDate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -112,6 +113,9 @@ import com.gigi.cca.shared.ErrorType
 import com.gigi.cca.shared.Homework
 import com.gigi.cca.shared.Lesson
 import com.gigi.cca.shared.RequestMaker
+import com.gigi.cca.shared.ScreenObject
+import com.gigi.cca.shared.HomeworkContentObject
+import com.gigi.cca.shared.HomeworkListObject
 import com.gigi.cca.shared.Success
 import com.gigi.classchartsandroid.ui.theme.ClassChartsAndroidTheme
 import kotlinx.coroutines.CoroutineScope
@@ -152,29 +156,8 @@ import kotlin.math.min
 
 val Context.appDataStore: DataStore<Preferences> by preferencesDataStore("settings")
 class MainActivity : ComponentActivity() {
-    public val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    open class ScreenObject
-
-    @Serializable
-    object HomeworkListObject : ScreenObject()
-
-    @Serializable
-    @Entity
-    data class HomeworkContentObject(
-        @ColumnInfo("title") val title: String,
-        @ColumnInfo("complete") val complete: Boolean,
-        @ColumnInfo("teacher") val teacher: String,
-        @ColumnInfo("subject") val subject: String,
-        @ColumnInfo("body") val body: String,
-        @ColumnInfo("issue_date") val issueDate: String = "",
-        @ColumnInfo("due_date") val dueDate: String = "",
-        @PrimaryKey val id: String = "",
-        @ColumnInfo("completion_time") val completionTime: String,
-        @ColumnInfo("attachments") val attachments: String,
-        @ColumnInfo("user_added") val userAdded: Boolean = false,
-        @ColumnInfo("user_notes") val userNotes: String = "",
-        @ColumnInfo("completion_state") val completionState: Int = 0
-    ) : ScreenObject()
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    //open class ScreenObject
 
     @Serializable
     object LoginScreenObject : ScreenObject()
@@ -330,7 +313,7 @@ class MainActivity : ComponentActivity() {
                                                         TodayMarker()
                                                     }
                                                     if (homework.dueDate != LocalDate.now()) {
-                                                        DateDivider(homework.dueDate)
+                                                        DateDivider(homework.dueDate?: LocalDate.ofEpochDay(0))
                                                     }
                                                 }
                                             }
@@ -387,6 +370,7 @@ class MainActivity : ComponentActivity() {
 
 //data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: String, val dueDate: LocalDate? = null)
 
+val moreunusedcodewhichprobablyshouldbemadeintoanactualmodule = """
 @Composable
 fun HomeworkList(requestMaker: RequestMaker, homeworksList: MutableList<Homework>, onlyIncomplete: Boolean) {
     val linkStyle = TextLinkStyles(
@@ -395,13 +379,17 @@ fun HomeworkList(requestMaker: RequestMaker, homeworksList: MutableList<Homework
             color = MaterialTheme.colorScheme.secondary
         )
     )
+    val colorScheme = MaterialTheme.colorScheme
 
-    requestMaker.refreshHomeworkList(onlyIncomplete, linkStyle, MaterialTheme.colorScheme)
+    LaunchedEffect(Dispatchers.IO) {
+        requestMaker.refreshHomeworkList(onlyIncomplete, linkStyle, colorScheme)
+    }
 
     for (homework in homeworksList) {
         HomeworkCard(homework = homework, compact = false, requestMaker = requestMaker)
     }
 }
+"""
 
 @Composable
 fun DateDivider(date: LocalDate, modifier: Modifier = Modifier.padding(horizontal = 20.dp, vertical = 5.dp)) {
@@ -821,9 +809,11 @@ fun HomeworkContent(homework: Homework, requestMaker: RequestMaker? = null, link
                     Spacer(modifier = Modifier.weight(1f))
                     val colorScheme = MaterialTheme.colorScheme
                     Checkbox(checked = homework.complete, onCheckedChange = 
-                        { 
-                            requestMaker?.tickHomework(homework.id!!)
-                            requestMaker?.refreshHomeworkList(onlyIncomplete, linkStyle!!, colorScheme)
+                        {
+                            MainActivity.instance.appScope.launch {
+                                requestMaker?.tickHomework(homework.id!!)
+                                homework.complete = !homework.complete
+                            }
                         },
                         modifier = Modifier.align(Alignment.CenterVertically))
                     Spacer(modifier = Modifier.width(10.dp))
@@ -873,7 +863,7 @@ fun HomeworkContent(homework: Homework, requestMaker: RequestMaker? = null, link
                     text = homework.body
                 )
                 if (homework.attachments != null) {
-                    if (homework.attachments.isNotEmpty()) {
+                    if ((homework.attachments as Collection<Any?>).isNotEmpty()) {
                         Spacer(Modifier.height(15.dp))
                         Text(
                             text = "Attachments",
@@ -1074,7 +1064,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                                     isInitial = false
                                     Log.d("Slow", "ListLessonsLocal")
                                     localLessonsListResponse =
-                                        requestMaker.listLessons(localDate)
+                                        runBlocking {requestMaker.listLessons(localDate)} // TODO: Make the timetable not blocking
                                     if (localLessonsListResponse != null) {
                                         if (localLessonsListResponse!!.isLeft()) {
                                             if (localLessonsListResponse!!.leftOrNull() != null) {
