@@ -10,7 +10,7 @@ import com.gigi.classchartsandroid.MainActivity
 actual fun platform() = "Android"
 
 actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
-    val appContext = MainActivity.instance
+    val appContext = android.content.Context
     return Room.databaseBuilder<AppDatabase>(
         context = appContext,
         name = appContext.getDatabasePath("main.db").absolutePath

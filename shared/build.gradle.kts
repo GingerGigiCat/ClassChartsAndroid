@@ -114,7 +114,6 @@ kotlin {
                 implementation(libs.androidx.compose.material3)
                 implementation(libs.material3)
                 implementation(libs.ktor.client.okhttp)
-                implementation(project(":app"))
             }
         }
 
