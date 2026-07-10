@@ -611,3 +611,7 @@ class RequestMaker {
     }
 
 }
+
+fun getMillisForLocalDate(date: LocalDate): Long {
+    return date.toEpochDay() * 24 * 60 * 60 * 1000
+}

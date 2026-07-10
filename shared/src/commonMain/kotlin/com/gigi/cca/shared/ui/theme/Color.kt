@@ -1,4 +1,4 @@
-package com.gigi.classchartsandroid.ui.theme
+package com.gigi.cca.shared.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
