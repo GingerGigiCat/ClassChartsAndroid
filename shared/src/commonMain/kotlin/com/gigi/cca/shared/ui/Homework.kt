@@ -44,7 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import classchartsandroid.shared.generated.resources.Res
+import com.gigi.cca.shared.resources.Res
 import com.gigi.cca.shared.Attachment
 import com.gigi.cca.shared.Homework
 import com.gigi.cca.shared.RequestMaker

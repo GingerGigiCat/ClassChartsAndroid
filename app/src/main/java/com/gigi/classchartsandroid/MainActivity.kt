@@ -437,11 +437,7 @@ fun LogInScreen(modifier:Modifier = Modifier, requestMaker: RequestMaker, naviga
     else return loginResponse
 }
 
-private fun String.getMimeType(): String? {
-    return MimeTypeMap.getFileExtensionFromUrl(toString())?.run {
-        MimeTypeMap.getSingleton().getMimeTypeFromExtension(lowercase())
-    }?: "text/html"
-}
+
 
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable

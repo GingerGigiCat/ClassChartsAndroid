@@ -62,7 +62,7 @@ kotlin {
     // See: https://kotlinlang.org/docs/multiplatform-hierarchy.html
     sourceSets {
         commonMain {
-            resources.srcDir("src/commonMain/resources")
+            //resources.srcDir("src/commonMain/resources")
 
             dependencies {
                 implementation(libs.kotlin.stdlib)
@@ -149,5 +149,7 @@ kotlin {
 }
 
 compose.resources {
+    publicResClass = true
     generateResClass = ResourcesExtension.ResourceClassGeneration.Always
+    packageOfResClass = "com.gigi.cca.shared.resources"
 }
