@@ -30,7 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import classchartsandroid.shared.generated.resources.Res
+import com.gigi.cca.shared.ui.icons.calendar_month
 import com.gigi.cca.shared.ui.theme.ClassChartsAndroidTheme
 import org.jetbrains.compose.resources.painterResource
 import java.time.LocalDate
@@ -103,7 +103,7 @@ fun DatePickerButton(getLocalDate: () -> LocalDate, onClick: () -> Unit, label: 
         ),
         leadingIcon = {
             Image(
-                painterResource(Res.drawable.ico_calendar_month),
+                calendar_month,
                 contentDescription = "Calendar icon",
                 modifier = Modifier
                     .padding(start = 6.dp)

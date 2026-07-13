@@ -26,6 +26,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,26 +34,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
-import androidx.compose.ui.text.input.KeyboardType.Companion.Uri
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.gigi.cca.shared.resources.Res
+import be.digitalia.compose.htmlconverter.HtmlStyle
+import be.digitalia.compose.htmlconverter.htmlToAnnotatedString
+import com.gigi.cca.shared.ui.icons.link_2
 import com.gigi.cca.shared.Attachment
 import com.gigi.cca.shared.Homework
 import com.gigi.cca.shared.RequestMaker
+import com.gigi.cca.shared.openUriMime
+import com.gigi.cca.shared.ui.icons.calendar_month
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.painterResource
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -87,14 +90,16 @@ fun HomeworkContent(homework: Homework, requestMaker: RequestMaker? = null, link
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     val colorScheme = MaterialTheme.colorScheme
+                    var checkedChangeTrigger by remember {mutableStateOf(false)}
+                    if (checkedChangeTrigger) {
+                        LaunchedEffect(Dispatchers.IO) {
+                            requestMaker?.tickHomework(homework.id!!)
+                            homework.complete = !homework.complete
+                        }
+                    }
                     Checkbox(
-                        checked = homework.complete, onCheckedChange =
-                            {
-                                Dispatchers launch {
-                                    requestMaker?.tickHomework(homework.id!!)
-                                    homework.complete = !homework.complete
-                                }
-                            },
+                        checked = homework.complete,
+                        onCheckedChange = { checkedChangeTrigger = true },
                         modifier = Modifier.align(Alignment.CenterVertically)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -291,18 +296,13 @@ fun HomeworkAttachmentCardPreview() {
 fun HomeworkAttachmentCard(attachment: Attachment, modifier:Modifier = Modifier) {
     var attachmentExpanded by remember { mutableStateOf(false) }
     var outerCardModifier: Modifier = Modifier
-    val uriHandler = LocalUriHandler.current
-    val context = LocalContext.current
 
     val openLink = {
         if (!attachmentExpanded) {
             attachmentExpanded = true
-        } else {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(Uri.parse(attachment.link), attachment.link.getMimeType())
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            context.startActivity(intent)
+        }
+        else {
+            openUriMime(attachment.link)
         }
     }
 
@@ -324,16 +324,7 @@ fun HomeworkAttachmentCard(attachment: Attachment, modifier:Modifier = Modifier)
                 Modifier
                     .width(80.dp)
                     .padding(5.dp)
-                    .clickable(onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(
-                                Uri.parse(attachment.link),
-                                attachment.link.getMimeType()
-                            )
-                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        }
-                        context.startActivity(intent)
-                    }),
+                    .clickable(onClick = { openUriMime(attachment.link) }),
                 colors = CardColors(
                     MaterialTheme.colorScheme.surfaceContainer,
                     MaterialTheme.colorScheme.onSurfaceVariant,
@@ -342,14 +333,14 @@ fun HomeworkAttachmentCard(attachment: Attachment, modifier:Modifier = Modifier)
                 ),
 
                 ) {
-                var cardIcon: Int
+                var cardIcon: ImageVector
                 if (attachment.isFile) {
-                    cardIcon = Res.drawable.ico_description
+                    cardIcon = calendar_month
                 } else {
-                    cardIcon = Res.drawable.ico_link_2
+                    cardIcon = link_2
                 }
                 Image(
-                    painterResource(cardIcon), "link",
+                    cardIcon, "link",
                     modifier = Modifier
                         .padding(10.dp)
                         .align(Alignment.CenterHorizontally)
@@ -385,15 +376,15 @@ fun HomeworkContentPreview() {
             teacher = "Mr. Teacher",
             subject = "Music",
             completionTime = "5 hours",
-            body = AnnotatedString.fromHtml(
+            body = htmlToAnnotatedString(
                 "\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n",
-                linkStyles = TextLinkStyles(
+                style = HtmlStyle(TextLinkStyles(
                     SpanStyle(
                         textDecoration = TextDecoration.Underline,
                         color = MaterialTheme.colorScheme.primary
                     )
                 )
-            ),
+            )),
             issueDate = LocalDate.parse("2025-04-17"),
             dueDate = LocalDate.parse("2025-12-20")
         )
