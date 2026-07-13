@@ -4,74 +4,27 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.StrictMode
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
+import com.gigi.cca.shared.App
 import com.gigi.cca.shared.ui.DateDivider
-import com.gigi.cca.shared.ErrorInvalidLogin
 import com.gigi.cca.shared.Homework
 import com.gigi.cca.shared.ui.HomeworkCard
-import com.gigi.cca.shared.ui.HomeworkContent
-import com.gigi.cca.shared.RequestMaker
-import com.gigi.cca.shared.ScreenObject
-import com.gigi.cca.shared.HomeworkContentObject
-import com.gigi.cca.shared.HomeworkListObject
-import com.gigi.cca.shared.ui.ShowCompletedHomeworksToggle
-import com.gigi.cca.shared.Success
-import com.gigi.cca.shared.ui.TimetableScreen
-import com.gigi.cca.shared.ui.TodayMarker
 import com.gigi.cca.shared.ui.theme.ClassChartsAndroidTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Serializable
 import java.time.LocalDate
-import kotlin.math.max
-import kotlin.math.min
 
 // Features to add:
 // Tickable homeworks DONE but make it work on the actual homework page
@@ -99,21 +52,6 @@ import kotlin.math.min
 
 val Context.appDataStore: DataStore<Preferences> by preferencesDataStore("settings")
 class MainActivity : ComponentActivity() {
-    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    //open class ScreenObject
-
-    @Serializable
-    object LoginScreenObject : ScreenObject()
-
-    @Serializable
-    object TimetableScreenObject : ScreenObject()
-
-    data class NavigationItem(
-        val title: String,
-        val icon: ImageVector,
-        val route: ScreenObject
-    )
-
     companion object {
         lateinit var instance: MainActivity
             private set
@@ -128,196 +66,15 @@ class MainActivity : ComponentActivity() {
         StrictMode.setThreadPolicy(
             StrictMode.ThreadPolicy.Builder().permitAll().build()
         )
-        val requestMaker = RequestMaker()
 
         //val homeworksList: MutableList<Homework> = mutableListOf()
 
         setContent {
-            var studentId by remember { mutableStateOf(requestMaker.studentId) }
-            var studentDob by remember { mutableStateOf(requestMaker.studentDob) }
-            var loginResponse by remember { mutableStateOf(runBlocking { requestMaker.login(studentId, studentDob) }) }
-            val homeworksList = remember { mutableStateListOf<Homework>() }
-            var updateHomeworksColumnNeeded by remember { mutableStateOf(true) }
-            var triggerHomeworkListUpdate by remember {mutableStateOf(true)}
-            var showCompletedHomeworksChecked by remember { mutableStateOf(true) }
-            val linkStyle = TextLinkStyles(
-                style = SpanStyle(
-                    textDecoration = TextDecoration.Underline,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            )
-            //requestMaker.listLessons(LocalDate.now())
-            val navController = rememberNavController()
-            var startDestination: ScreenObject = LoginScreenObject
-            var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
-            val destinations = listOf(
-                NavigationItem("Homework",
-                    ImageVector.vectorResource(R.drawable.ico_list),
-                    HomeworkListObject),
-                NavigationItem("Timetable",
-                    ImageVector.vectorResource(R.drawable.ico_calendar_month),
-                    TimetableScreenObject)
-            )
-
-            if (loginResponse is ErrorInvalidLogin) {
-                startDestination = LoginScreenObject
-            } // TODO: add handling for waiting and network error
-            if (loginResponse is Success) {
-                startDestination = HomeworkListObject
-            }
-            Log.d("LoginResponse", loginResponse.toString()) // TODO: figure out why this is always error
-
-            val navBar = @Composable {
-                NavigationBar {
-                    destinations.forEachIndexed { index, item: NavigationItem ->
-                        NavigationBarItem(
-                            selected = (index == selectedDestination),
-                            onClick = {
-                                if (index != selectedDestination) {
-                                    navController.navigate(item.route)
-                                    selectedDestination = index
-                                }
-                            },
-                            icon = {
-                                Icon(item.icon, item.title)
-                            },
-                            label = { Text(item.title) }
-                        )
-                    }
-                }
-            }
-
-            NavHost(navController, startDestination = startDestination) {
-                composable<HomeworkListObject> {
-                    val homeworkListScope = rememberCoroutineScope()
-                    //HomeworkList(requestMaker = requestMaker, homeworksList = homeworksList, onlyIncomplete = true)
-                    ClassChartsAndroidTheme {
-                        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow, bottomBar = navBar) { innerPadding ->
-                            Column(modifier = Modifier
-                                .padding(innerPadding)
-                            ) {
-                                ShowCompletedHomeworksToggle(
-                                    showCompletedHomeworksChecked,
-                                    { showCompletedHomeworksChecked = it })
-                                val colorScheme = MaterialTheme.colorScheme
-                                LazyColumn {
-                                    if (updateHomeworksColumnNeeded) {
-                                        updateHomeworksColumnNeeded = false
-                                        Log.d("HomeworksListUpdate", "Updating the homework list due to db change")
-                                        val rawHomeworksList = requestMaker.homeworkDao.getAll(showCompletedHomeworksChecked)
-                                        homeworksList.clear()
-                                        for (rawHomework in rawHomeworksList) {
-                                            homeworksList += requestMaker.homeworkContentToNormalHomework(rawHomework, linkStyle)
-                                        }
-                                    }
-                                    else if (!triggerHomeworkListUpdate){
-                                        val rawHomeworksList = requestMaker.homeworkDao.getAll(showCompletedHomeworksChecked)
-                                        homeworksList.clear()
-                                        for (rawHomework in rawHomeworksList) {
-                                            homeworksList += requestMaker.homeworkContentToNormalHomework(rawHomework, linkStyle)
-                                        }
-                                        homeworkListScope.launch(Dispatchers.IO) {
-                                            requestMaker.refreshHomeworkList(
-                                                showCompletedHomeworksChecked,
-                                                linkStyle,
-                                                colorScheme,
-                                                { updateHomeworksColumnNeeded = true })
-                                        }
-                                    }
-                                    if (triggerHomeworkListUpdate) {
-
-                                        homeworkListScope.launch(Dispatchers.IO) {
-                                            requestMaker.refreshHomeworkList(
-                                                showCompletedHomeworksChecked,
-                                                linkStyle,
-                                                colorScheme,
-                                                { updateHomeworksColumnNeeded = true }
-                                            )
-                                        }
-                                        triggerHomeworkListUpdate = false
-                                    }
-
-                                    itemsIndexed(
-                                        items = homeworksList,
-                                        key = {index, homework -> homework.id!! }
-                                    ) { index, homework ->
-                                        var cardVisible by remember { mutableStateOf(true) }
-                                        var lonelyHomework = ((index == 0) || homework.dueDate != homeworksList[max(index-1, 0)].dueDate) && (index == homeworksList.size-1 || homework.dueDate != homeworksList[min(index+1, homeworksList.size-1)].dueDate)
-                                        AnimatedVisibility(visible=!(!cardVisible && lonelyHomework), ) {
-                                            Column {
-                                                if (homework.dueDate != homeworksList[max(
-                                                        index - 1,
-                                                        0
-                                                    )].dueDate || index == 0 // if date is different to the previous one
-                                                ) {
-                                                    if (homework.dueDate!! >= LocalDate.now() && (homeworksList[max(
-                                                            index - 1,
-                                                            0
-                                                        )].dueDate!! < LocalDate.now() || index == 0)
-                                                    ) {
-                                                        TodayMarker()
-                                                    }
-                                                    if (homework.dueDate != LocalDate.now()) {
-                                                        DateDivider(
-                                                            homework.dueDate
-                                                                ?: LocalDate.ofEpochDay(0)
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        AnimatedVisibility(enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically(), visible=cardVisible) {
-                                            HomeworkCard(
-                                                homework = homework, compact = false,
-                                                navigate = {
-                                                    navController.navigate(
-                                                        requestMaker.normalHomeworkToHomeworkContent(
-                                                            homework
-                                                        )
-                                                    )
-                                                },
-                                                requestMaker = requestMaker,
-                                                homeworksList = homeworksList,
-                                                onlyIncomplete = showCompletedHomeworksChecked,
-                                                linkStyle = linkStyle,
-                                                triggerHomeworkListUpdate = {
-                                                    triggerHomeworkListUpdate = true
-                                                },
-                                                homeworkListScope = homeworkListScope,
-                                                toggleVisibility = {
-                                                    if (showCompletedHomeworksChecked) cardVisible =
-                                                        !cardVisible
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                composable<HomeworkContentObject> { backStackEntry ->
-                    val homeworkContentObj: HomeworkContentObject = backStackEntry.toRoute()
-                    val homework: Homework = requestMaker.homeworkContentToNormalHomework(homeworkContentObj, linkStyle)
-                    HomeworkContent(homework)
-                }
-                composable<LoginScreenObject> { backStackEntry ->
-                    ClassChartsAndroidTheme {
-                        Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) { innerPadding ->
-                            loginResponse = LogInScreen(Modifier.padding(innerPadding), requestMaker, {navController.navigate(
-                                HomeworkListObject
-                            )})
-                        }
-                    }
-                }
-                composable<TimetableScreenObject> {
-                    TimetableScreen(navBar)
-                }
-            }
+            App()
         }
     }
 }
+
 
 //data class Homework(val title: String, val complete: Boolean, val teacher: String, val subject: String, val body: String, val dueDate: LocalDate? = null)
 
@@ -341,6 +98,7 @@ fun HomeworkList(requestMaker: RequestMaker, homeworksList: MutableList<Homework
     }
 }
 """
+
 
 
 @Preview(showBackground = true, showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)

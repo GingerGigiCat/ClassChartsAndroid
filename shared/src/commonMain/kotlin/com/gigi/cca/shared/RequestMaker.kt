@@ -110,6 +110,14 @@ data class HomeworkContentObject(
     @ColumnInfo("completion_state") val completionState: Int = 0
 ) : ScreenObject()
 
+
+@Serializable
+object LoginScreenObject : ScreenObject()
+
+@Serializable
+object TimetableScreenObject : ScreenObject()
+
+
 @Serializable
 @Entity
 data class UserInfo(

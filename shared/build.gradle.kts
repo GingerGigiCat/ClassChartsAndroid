@@ -93,6 +93,7 @@ kotlin {
                 implementation("be.digitalia.compose.htmlconverter:htmlconverter:1.1.1")
                 implementation("org.jetbrains.compose.ui:ui-tooling-preview:1.10.0")
                 implementation(compose.components.resources)
+                implementation("androidx.navigation:navigation-compose:2.8.7")
             }
         }
 

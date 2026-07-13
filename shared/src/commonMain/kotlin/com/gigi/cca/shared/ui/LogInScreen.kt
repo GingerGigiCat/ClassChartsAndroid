@@ -1,4 +1,4 @@
-package com.gigi.classchartsandroid
+package com.gigi.cca.shared.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,8 +31,6 @@ import co.touchlab.kermit.Logger
 import com.gigi.cca.shared.ErrorInvalidLogin
 import com.gigi.cca.shared.ErrorType
 import com.gigi.cca.shared.RequestMaker
-import com.gigi.cca.shared.ui.DatePickerButton
-import com.gigi.cca.shared.ui.DoDatePicker
 import com.gigi.cca.shared.ui.theme.ClassChartsAndroidTheme
 import kotlinx.coroutines.runBlocking
 import java.time.LocalDate
