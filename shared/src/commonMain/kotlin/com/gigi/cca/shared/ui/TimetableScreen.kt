@@ -1,4 +1,4 @@
-package com.gigi.classchartsandroid
+package com.gigi.cca.shared.ui
 
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import arrow.core.Either
+import co.touchlab.kermit.Logger
 import com.gigi.cca.shared.ErrorType
 import com.gigi.cca.shared.Lesson
 import com.gigi.cca.shared.RequestMaker
@@ -46,6 +47,7 @@ import kotlinx.coroutines.runBlocking
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlin.collections.plusAssign
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +59,8 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
     var lessonsListResponse by remember { mutableStateOf<Either<MutableList<Lesson>, ErrorType>?>(null) }
     val requestMaker by remember { mutableStateOf(RequestMaker()) }
 
-    if (dateState.selectedDateMillis == null) dateState.selectedDateMillis = getMillisForLocalDate(LocalDate.now())
+    if (dateState.selectedDateMillis == null) dateState.selectedDateMillis =
+        getMillisForLocalDate(LocalDate.now())
 
     if ( requestMaker.sessionId == "demo" ) {
         lessonsList += Lesson(
@@ -123,7 +126,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
     }
     else {
         if (requestMaker.sessionId == null) {
-            Log.d("Slow", "Login")
+            Logger.d("Slow") {"Login"}
             runBlocking { requestMaker.login(null, null) }
         }
     }
@@ -161,14 +164,14 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                     )
                     Spacer(Modifier.height(8.dp))
                     if (showDatePicker) DoDatePicker(dateState, { theState ->
-                        dateState.setSelectedDate(theState.getSelectedDate())
+                        dateState.selectedDateMillis = theState.selectedDateMillis
                         showDatePicker = false
 
                         //middlePageDate = getLocalDateObjectForSelected()
                         pagerState.requestScrollToPage((pageCount / 2 + getLocalDateObjectForSelected().toEpochDay() - middlePageDate.toEpochDay()).toInt())
                         //pagerState.requestScrollToPage(pageCount / 2)
                     })
-                    Log.d("Height", buttonHeight.toString())
+                    Logger.d("Height") {buttonHeight.toString()}
                     HorizontalPager(
                         pagerState,
                         modifier = Modifier.fillMaxWidth()
@@ -192,7 +195,7 @@ fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
                                 var isInitial by remember { mutableStateOf(true) }
                                 if (isInitial) {
                                     isInitial = false
-                                    Log.d("Slow", "ListLessonsLocal")
+                                    Logger.d("Slow") {"ListLessonsLocal"}
                                     localLessonsListResponse =
                                         runBlocking { requestMaker.listLessons(localDate) } // TODO: Make the timetable not blocking
                                     if (localLessonsListResponse != null) {

@@ -1,3 +1,5 @@
+import org.jetbrains.compose.resources.ResourcesExtension
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
@@ -12,6 +14,8 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+
+
 kotlin {
 
     // Target declarations - add or remove as needed below. These define
@@ -19,6 +23,7 @@ kotlin {
     // See: https://kotlinlang.org/docs/multiplatform-discover-project.html#targets
     androidLibrary {
         namespace = "com.gigi.cca.shared"
+        androidResources.enable = true
         compileSdk {
             version = release(36) {
                 minorApiLevel = 1
@@ -57,6 +62,8 @@ kotlin {
     // See: https://kotlinlang.org/docs/multiplatform-hierarchy.html
     sourceSets {
         commonMain {
+            resources.srcDir("src/commonMain/resources")
+
             dependencies {
                 implementation(libs.kotlin.stdlib)
                 // Add KMP dependencies here
@@ -84,6 +91,8 @@ kotlin {
                 implementation(compose.foundation)
                 implementation(compose.material3)
                 implementation("be.digitalia.compose.htmlconverter:htmlconverter:1.1.1")
+                implementation("org.jetbrains.compose.ui:ui-tooling-preview:1.10.0")
+                implementation(compose.components.resources)
             }
         }
 
@@ -137,4 +146,8 @@ kotlin {
         }
     }
 
+}
+
+compose.resources {
+    generateResClass = ResourcesExtension.ResourceClassGeneration.Always
 }
