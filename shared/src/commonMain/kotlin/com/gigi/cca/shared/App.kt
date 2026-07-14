@@ -57,229 +57,256 @@ import kotlin.math.min
 
 
 class App {
-@Composable
-fun App() {
-    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    val requestMaker = RequestMaker()
-    //open class ScreenObject
+    var appContext: Any? = null
+    constructor() {
 
-    data class NavigationItem(
-        val title: String,
-        val icon: ImageVector,
-        val route: ScreenObject
-    )
-
-    var studentId by remember { mutableStateOf(requestMaker.studentId) }
-    var studentDob by remember { mutableStateOf(requestMaker.studentDob) }
-    var loginResponse by remember { mutableStateOf(runBlocking { requestMaker.login(studentId, studentDob) }) } //TODO: Make this not runblocking and use the login sign from the db
-    val homeworksList = remember { mutableStateListOf<Homework>() }
-    var updateHomeworksColumnNeeded by remember { mutableStateOf(true) }
-    var triggerHomeworkListUpdate by remember {mutableStateOf(true)}
-    var showCompletedHomeworksChecked by remember { mutableStateOf(true) }
-    val linkStyle = TextLinkStyles(
-        style = SpanStyle(
-            textDecoration = TextDecoration.Underline,
-            color = MaterialTheme.colorScheme.secondary
-        )
-    )
-    //requestMaker.listLessons(LocalDate.now())
-    val navController = rememberNavController()
-    var startDestination: ScreenObject = LoginScreenObject
-    var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
-    val destinations = listOf(
-        NavigationItem("Homework",
-            list,
-            HomeworkListObject),
-        NavigationItem("Timetable",
-            calendar_month,
-            TimetableScreenObject)
-    )
-
-    if (loginResponse is ErrorInvalidLogin) {
-        startDestination = LoginScreenObject
-    } // TODO: add handling for waiting and network error
-    if (loginResponse is Success) {
-        startDestination = HomeworkListObject
     }
-    Logger.d("LoginResponse") { loginResponse.toString() } // TODO: figure out why this is always error
 
-    val navBar = @Composable {
-        NavigationBar {
-            destinations.forEachIndexed { index, item: NavigationItem ->
-                NavigationBarItem(
-                    selected = (index == selectedDestination),
-                    onClick = {
-                        if (index != selectedDestination) {
-                            navController.navigate(item.route)
-                            selectedDestination = index
-                        }
-                    },
-                    icon = {
-                        Icon(item.icon, item.title)
-                    },
-                    label = { Text(item.title) }
+    constructor(context: Any?) {
+        appContext = context
+    }
+
+
+    @Composable
+    fun Ui() {
+        val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val requestMaker = RequestMaker(appContext)
+        //open class ScreenObject
+
+        data class NavigationItem(
+            val title: String,
+            val icon: ImageVector,
+            val route: ScreenObject
+        )
+
+        var studentId by remember { mutableStateOf(requestMaker.studentId) }
+        var studentDob by remember { mutableStateOf(requestMaker.studentDob) }
+        var loginResponse by remember {
+            mutableStateOf(runBlocking {
+                requestMaker.login(
+                    studentId,
+                    studentDob
                 )
+            })
+        } //TODO: Make this not runblocking and use the login sign from the db
+        val homeworksList = remember { mutableStateListOf<Homework>() }
+        var updateHomeworksColumnNeeded by remember { mutableStateOf(true) }
+        var triggerHomeworkListUpdate by remember { mutableStateOf(true) }
+        var showCompletedHomeworksChecked by remember { mutableStateOf(true) }
+        val linkStyle = TextLinkStyles(
+            style = SpanStyle(
+                textDecoration = TextDecoration.Underline,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        )
+        //requestMaker.listLessons(LocalDate.now())
+        val navController = rememberNavController()
+        var startDestination: ScreenObject = LoginScreenObject
+        var selectedDestination by rememberSaveable { mutableIntStateOf(0) }
+        val destinations = listOf(
+            NavigationItem(
+                "Homework",
+                list,
+                HomeworkListObject
+            ),
+            NavigationItem(
+                "Timetable",
+                calendar_month,
+                TimetableScreenObject
+            )
+        )
+
+        if (loginResponse is ErrorInvalidLogin) {
+            startDestination = LoginScreenObject
+        } // TODO: add handling for waiting and network error
+        if (loginResponse is Success) {
+            startDestination = HomeworkListObject
+        }
+        Logger.d("LoginResponse") { loginResponse.toString() } // TODO: figure out why this is always error
+
+        val navBar = @Composable {
+            NavigationBar {
+                destinations.forEachIndexed { index, item: NavigationItem ->
+                    NavigationBarItem(
+                        selected = (index == selectedDestination),
+                        onClick = {
+                            if (index != selectedDestination) {
+                                navController.navigate(item.route)
+                                selectedDestination = index
+                            }
+                        },
+                        icon = {
+                            Icon(item.icon, item.title)
+                        },
+                        label = { Text(item.title) }
+                    )
+                }
             }
         }
-    }
 
-    NavHost(navController, startDestination = startDestination) {
-        composable<HomeworkListObject> {
-            val homeworkListScope = rememberCoroutineScope()
-            //HomeworkList(requestMaker = requestMaker, homeworksList = homeworksList, onlyIncomplete = true)
-            ClassChartsAndroidTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    bottomBar = navBar
-                ) { innerPadding ->
-                    Column(
-                        modifier = Modifier
-                            .padding(innerPadding)
-                    ) {
-                        ShowCompletedHomeworksToggle(
-                            showCompletedHomeworksChecked,
-                            { showCompletedHomeworksChecked = it })
-                        val colorScheme = MaterialTheme.colorScheme
-                        LazyColumn {
-                            if (updateHomeworksColumnNeeded) {
-                                updateHomeworksColumnNeeded = false
-                                Logger.d(
-                                    "HomeworksListUpdate")
-                                {"Updating the homework list due to db change"}
-                                val rawHomeworksList =
-                                    requestMaker.homeworkDao.getAll(showCompletedHomeworksChecked)
-                                homeworksList.clear()
-                                for (rawHomework in rawHomeworksList) {
-                                    homeworksList += requestMaker.homeworkContentToNormalHomework(
-                                        rawHomework,
-                                        linkStyle
+        NavHost(navController, startDestination = startDestination) {
+            composable<HomeworkListObject> {
+                val homeworkListScope = rememberCoroutineScope()
+                //HomeworkList(requestMaker = requestMaker, homeworksList = homeworksList, onlyIncomplete = true)
+                ClassChartsAndroidTheme {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        bottomBar = navBar
+                    ) { innerPadding ->
+                        Column(
+                            modifier = Modifier
+                                .padding(innerPadding)
+                        ) {
+                            ShowCompletedHomeworksToggle(
+                                showCompletedHomeworksChecked,
+                                { showCompletedHomeworksChecked = it })
+                            val colorScheme = MaterialTheme.colorScheme
+                            LazyColumn {
+                                if (updateHomeworksColumnNeeded) {
+                                    updateHomeworksColumnNeeded = false
+                                    Logger.d(
+                                        "HomeworksListUpdate"
                                     )
+                                    { "Updating the homework list due to db change" }
+                                    val rawHomeworksList =
+                                        requestMaker.homeworkDao!!.getAll(
+                                            showCompletedHomeworksChecked
+                                        )
+                                    homeworksList.clear()
+                                    for (rawHomework in rawHomeworksList) {
+                                        homeworksList += requestMaker.homeworkContentToNormalHomework(
+                                            rawHomework,
+                                            linkStyle
+                                        )
+                                    }
+                                } else if (!triggerHomeworkListUpdate) {
+                                    val rawHomeworksList =
+                                        requestMaker.homeworkDao!!.getAll(
+                                            showCompletedHomeworksChecked
+                                        )
+                                    homeworksList.clear()
+                                    for (rawHomework in rawHomeworksList) {
+                                        homeworksList += requestMaker.homeworkContentToNormalHomework(
+                                            rawHomework,
+                                            linkStyle
+                                        )
+                                    }
+                                    homeworkListScope.launch(Dispatchers.IO) {
+                                        requestMaker.refreshHomeworkList(
+                                            showCompletedHomeworksChecked,
+                                            linkStyle,
+                                            colorScheme,
+                                            { updateHomeworksColumnNeeded = true })
+                                    }
                                 }
-                            } else if (!triggerHomeworkListUpdate) {
-                                val rawHomeworksList =
-                                    requestMaker.homeworkDao.getAll(showCompletedHomeworksChecked)
-                                homeworksList.clear()
-                                for (rawHomework in rawHomeworksList) {
-                                    homeworksList += requestMaker.homeworkContentToNormalHomework(
-                                        rawHomework,
-                                        linkStyle
-                                    )
-                                }
-                                homeworkListScope.launch(Dispatchers.IO) {
-                                    requestMaker.refreshHomeworkList(
-                                        showCompletedHomeworksChecked,
-                                        linkStyle,
-                                        colorScheme,
-                                        { updateHomeworksColumnNeeded = true })
-                                }
-                            }
-                            if (triggerHomeworkListUpdate) {
+                                if (triggerHomeworkListUpdate) {
 
-                                homeworkListScope.launch(Dispatchers.IO) {
-                                    requestMaker.refreshHomeworkList(
-                                        showCompletedHomeworksChecked,
-                                        linkStyle,
-                                        colorScheme,
-                                        { updateHomeworksColumnNeeded = true }
-                                    )
+                                    homeworkListScope.launch(Dispatchers.IO) {
+                                        requestMaker.refreshHomeworkList(
+                                            showCompletedHomeworksChecked,
+                                            linkStyle,
+                                            colorScheme,
+                                            { updateHomeworksColumnNeeded = true }
+                                        )
+                                    }
+                                    triggerHomeworkListUpdate = false
                                 }
-                                triggerHomeworkListUpdate = false
-                            }
 
-                            itemsIndexed(
-                                items = homeworksList,
-                                key = { index, homework -> homework.id!! }
-                            ) { index, homework ->
-                                var cardVisible by remember { mutableStateOf(true) }
-                                var lonelyHomework =
-                                    ((index == 0) || homework.dueDate != homeworksList[max(
-                                        index - 1,
-                                        0
-                                    )].dueDate) && (index == homeworksList.size - 1 || homework.dueDate != homeworksList[min(
-                                        index + 1,
-                                        homeworksList.size - 1
-                                    )].dueDate)
-                                AnimatedVisibility(visible = !(!cardVisible && lonelyHomework),) {
-                                    Column {
-                                        if (homework.dueDate != homeworksList[max(
-                                                index - 1,
-                                                0
-                                            )].dueDate || index == 0 // if date is different to the previous one
-                                        ) {
-                                            if (homework.dueDate!! >= LocalDate.now() && (homeworksList[max(
+                                itemsIndexed(
+                                    items = homeworksList,
+                                    key = { index, homework -> homework.id!! }
+                                ) { index, homework ->
+                                    var cardVisible by remember { mutableStateOf(true) }
+                                    var lonelyHomework =
+                                        ((index == 0) || homework.dueDate != homeworksList[max(
+                                            index - 1,
+                                            0
+                                        )].dueDate) && (index == homeworksList.size - 1 || homework.dueDate != homeworksList[min(
+                                            index + 1,
+                                            homeworksList.size - 1
+                                        )].dueDate)
+                                    AnimatedVisibility(visible = !(!cardVisible && lonelyHomework),) {
+                                        Column {
+                                            if (homework.dueDate != homeworksList[max(
                                                     index - 1,
                                                     0
-                                                )].dueDate!! < LocalDate.now() || index == 0)
+                                                )].dueDate || index == 0 // if date is different to the previous one
                                             ) {
-                                                TodayMarker()
-                                            }
-                                            if (homework.dueDate != LocalDate.now()) {
-                                                DateDivider(
-                                                    homework.dueDate
-                                                        ?: LocalDate.ofEpochDay(0)
-                                                )
+                                                if (homework.dueDate!! >= LocalDate.now() && (homeworksList[max(
+                                                        index - 1,
+                                                        0
+                                                    )].dueDate!! < LocalDate.now() || index == 0)
+                                                ) {
+                                                    TodayMarker()
+                                                }
+                                                if (homework.dueDate != LocalDate.now()) {
+                                                    DateDivider(
+                                                        homework.dueDate
+                                                            ?: LocalDate.ofEpochDay(0)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                AnimatedVisibility(
-                                    enter = fadeIn() + expandVertically(),
-                                    exit = fadeOut() + shrinkVertically(),
-                                    visible = cardVisible
-                                ) {
-                                    HomeworkCard(
-                                        homework = homework, compact = false,
-                                        navigate = {
-                                            navController.navigate(
-                                                requestMaker.normalHomeworkToHomeworkContent(
-                                                    homework
+                                    AnimatedVisibility(
+                                        enter = fadeIn() + expandVertically(),
+                                        exit = fadeOut() + shrinkVertically(),
+                                        visible = cardVisible
+                                    ) {
+                                        HomeworkCard(
+                                            homework = homework, compact = false,
+                                            navigate = {
+                                                navController.navigate(
+                                                    requestMaker.normalHomeworkToHomeworkContent(
+                                                        homework
+                                                    )
                                                 )
-                                            )
-                                        },
-                                        requestMaker = requestMaker,
-                                        homeworksList = homeworksList,
-                                        onlyIncomplete = showCompletedHomeworksChecked,
-                                        linkStyle = linkStyle,
-                                        triggerHomeworkListUpdate = {
-                                            triggerHomeworkListUpdate = true
-                                        },
-                                        homeworkListScope = homeworkListScope,
-                                        toggleVisibility = {
-                                            if (showCompletedHomeworksChecked) cardVisible =
-                                                !cardVisible
-                                        }
-                                    )
+                                            },
+                                            requestMaker = requestMaker,
+                                            homeworksList = homeworksList,
+                                            onlyIncomplete = showCompletedHomeworksChecked,
+                                            linkStyle = linkStyle,
+                                            triggerHomeworkListUpdate = {
+                                                triggerHomeworkListUpdate = true
+                                            },
+                                            homeworkListScope = homeworkListScope,
+                                            toggleVisibility = {
+                                                if (showCompletedHomeworksChecked) cardVisible =
+                                                    !cardVisible
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
-        composable<HomeworkContentObject> { backStackEntry ->
-            val homeworkContentObj: HomeworkContentObject = backStackEntry.toRoute()
-            val homework: Homework = requestMaker.homeworkContentToNormalHomework(homeworkContentObj, linkStyle)
-            HomeworkContent(homework)
-        }
-        composable<LoginScreenObject> { backStackEntry ->
-            ClassChartsAndroidTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ) { innerPadding ->
-                    loginResponse = LogInScreen(Modifier.padding(innerPadding), requestMaker, {
-                        navController.navigate(
-                            HomeworkListObject
-                        )
-                    })
+            composable<HomeworkContentObject> { backStackEntry ->
+                val homeworkContentObj: HomeworkContentObject = backStackEntry.toRoute()
+                val homework: Homework =
+                    requestMaker.homeworkContentToNormalHomework(homeworkContentObj, linkStyle)
+                HomeworkContent(homework)
+            }
+            composable<LoginScreenObject> { backStackEntry ->
+                ClassChartsAndroidTheme {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ) { innerPadding ->
+                        loginResponse = LogInScreen(Modifier.padding(innerPadding), requestMaker, {
+                            navController.navigate(
+                                HomeworkListObject
+                            )
+                        })
+                    }
                 }
             }
-        }
-        composable<TimetableScreenObject> {
-            TimetableScreen(navBar)
+            composable<TimetableScreenObject> {
+                TimetableScreen(navBar)
+            }
         }
     }
 }
-    }

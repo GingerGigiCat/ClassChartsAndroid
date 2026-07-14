@@ -9,7 +9,7 @@ import java.io.File
 actual fun platform() = "jvm"
 val packageName = "com.gigi.cca.shared"
 
-actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
+actual fun getDatabaseBuilder(context: Any?): RoomDatabase.Builder<AppDatabase> {
     return Room.databaseBuilder<AppDatabase>(
         name = File(appDataDirectory(packageName).toString(), "main.db").absolutePath
     )

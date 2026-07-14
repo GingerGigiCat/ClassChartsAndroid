@@ -165,7 +165,7 @@ interface UserDao {
     fun setLastOnline(lastOnline: String, id: Int = 0)
 }
 
-@Database(entities = [HomeworkContentObject::class, Lesson::class], version = 1, exportSchema = false)
+@Database(entities = [HomeworkContentObject::class, Lesson::class, UserInfo::class], version = 1, exportSchema = false)
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun homeworkDao(): HomeworkDao
@@ -178,10 +178,10 @@ expect object AppDatabaseConstructor : RoomDatabaseConstructor<AppDatabase> {
     override fun initialize(): AppDatabase
 }
 
-expect fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase>
+expect fun getDatabaseBuilder(context: Any? = null): RoomDatabase.Builder<AppDatabase>
 
-fun getRoomDatabase(): AppDatabase {
-    return getDatabaseBuilder()
+fun getRoomDatabase(context: Any? = null): AppDatabase {
+    return getDatabaseBuilder(context)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .build()
@@ -198,6 +198,7 @@ class ErrorWaiting : ErrorType()
 
 class RequestMaker {
     var sessionId: String? = null
+    var appContext: Any? = null
     var studentId: String? = null
     var studentDob: String? = null
     var studentLoginResponse: JsonObject? = null
@@ -243,21 +244,25 @@ class RequestMaker {
     //    .allowMainThreadQueries()
     //    .build()
 
-    val roomDb = getRoomDatabase()
-    val homeworkDao = roomDb.homeworkDao()
-    val lessonDao = roomDb.lessonDao()
-    val userDao = roomDb.userDao()
+    var roomDb: AppDatabase? = null
+    var homeworkDao: HomeworkDao? = null
+    var lessonDao: LessonDao? = null
+    var userDao: UserDao? = null
 
+    constructor(context: Any? = null) {
+        appContext = context
 
-    constructor() {
-
+        roomDb = getRoomDatabase(appContext)
+        homeworkDao = roomDb!!.homeworkDao()
+        lessonDao = roomDb!!.lessonDao()
+        userDao = roomDb!!.userDao()
     }
 
 
     suspend fun login(id: String? = null, dob: String? = null): ErrorType {
         var id: String = id?: ""
         var dob: String = dob?: ""
-        val userInfo = userDao.getUserInfo()
+        val userInfo = userDao!!.getUserInfo()
         if (id == "") {
             // Log.d("DataStoredID", idFlow().first())
             id = userInfo.studentId
@@ -269,8 +274,8 @@ class RequestMaker {
 
         if (id.lowercase() == "demo") {
             sessionId = "demo"
-            userDao.setStudentId("demo")
-            userDao.setStudentDob(dob)
+            userDao!!.setStudentId("demo")
+            userDao!!.setStudentDob(dob)
             return Success()
         }
 
@@ -306,10 +311,10 @@ class RequestMaker {
         catch (e: Exception) {
             return ErrorInvalidLogin()
         }
-        userDao.setStudentId(id)
-        userDao.setStudentDob(dob)
+        userDao!!.setStudentId(id)
+        userDao!!.setStudentDob(dob)
 
-        userDao.setValidLogin(true)
+        userDao!!.setValidLogin(true)
         return Success()
     }
 
@@ -533,7 +538,7 @@ class RequestMaker {
                 for (homework in homeworksList) {
                     rawHomeworksList += normalHomeworkToHomeworkContent(homework)
                 }
-                homeworkDao.insertAll(rawHomeworksList)
+                homeworkDao!!.insertAll(rawHomeworksList)
                 onFinish()
             }
         }
@@ -613,7 +618,7 @@ class RequestMaker {
             }
 
         }
-        lessonDao.insertDay(lessonList)
+        lessonDao!!.insertDay(lessonList)
         return Either.Left(lessonList)
 
     }

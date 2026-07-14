@@ -69,9 +69,6 @@ kotlin {
                 // Add KMP dependencies here
 
 
-
-
-
                 //implementation("com.squareup.okhttp3:okhttp:4.11.0")
                 //implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
                 implementation("me.sujanpoudel.multiplatform.utils:multiplatform-paths:0.2.2")
@@ -93,7 +90,7 @@ kotlin {
                 implementation("be.digitalia.compose.htmlconverter:htmlconverter:1.1.1")
                 implementation("org.jetbrains.compose.ui:ui-tooling-preview:1.10.0")
                 implementation(compose.components.resources)
-                implementation("androidx.navigation:navigation-compose:2.8.7")
+                implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.2")
             }
         }
 
@@ -153,4 +150,9 @@ compose.resources {
     publicResClass = true
     generateResClass = ResourcesExtension.ResourceClassGeneration.Always
     packageOfResClass = "com.gigi.cca.shared.resources"
+}
+
+dependencies {
+    add("kspAndroid", libs.androidx.room.compiler)
+    add("kspJvm", libs.androidx.room.compiler)
 }

@@ -70,7 +70,8 @@ class MainActivity : ComponentActivity() {
         //val homeworksList: MutableList<Homework> = mutableListOf()
 
         setContent {
-            App()
+            App(instance).Ui()
+
         }
     }
 }

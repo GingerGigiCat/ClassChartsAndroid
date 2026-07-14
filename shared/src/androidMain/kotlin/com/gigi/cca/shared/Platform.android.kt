@@ -10,18 +10,15 @@ import androidx.compose.ui.platform.UriHandler
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.core.net.toUri
+import co.touchlab.kermit.Logger
 
 actual fun platform() = "Android"
 
 var appContext: Context? = null
 
-private fun String.getMimeType(): String? {
-    return MimeTypeMap.getFileExtensionFromUrl(toString())?.run {
-        MimeTypeMap.getSingleton().getMimeTypeFromExtension(lowercase())
-    }?: "text/html"
-}
-
-actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
+actual fun getDatabaseBuilder(context: Any?): RoomDatabase.Builder<AppDatabase> {
+    Logger.d("Context got!")
+    appContext = context as Context?
     if (appContext != null) {
         return Room.databaseBuilder<AppDatabase>(
             context = appContext!!,
@@ -30,6 +27,13 @@ actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
     }
     error("uhh there's no context to make a database with")
 }
+
+private fun String.getMimeType(): String? {
+    return MimeTypeMap.getFileExtensionFromUrl(toString())?.run {
+        MimeTypeMap.getSingleton().getMimeTypeFromExtension(lowercase())
+    }?: "text/html"
+}
+
 
 actual fun openUriMime(uri: String) {
     if (appContext != null) {
