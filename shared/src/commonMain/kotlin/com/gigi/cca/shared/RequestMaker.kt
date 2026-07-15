@@ -1,9 +1,7 @@
 package com.gigi.cca.shared
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.room.ColumnInfo
@@ -15,10 +13,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy.Companion.REPLACE
 import androidx.room.PrimaryKey
 import androidx.room.Query
-import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
-import androidx.room.Upsert
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import arrow.core.Either
 import be.digitalia.compose.htmlconverter.HtmlStyle
@@ -30,7 +26,9 @@ import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
 import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.plugins.cookies.cookies
 import io.ktor.client.request.cookie
 import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.get
@@ -39,21 +37,13 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.Parameters
 import io.ktor.http.contentType
-import io.ktor.http.cookies
-import io.ktor.http.parameters
-import io.ktor.http.setCookie
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import java.time.LocalDate
@@ -150,6 +140,9 @@ interface HomeworkDao {
 
     @Insert(onConflict = REPLACE)
     suspend fun insertAll(homeworks: MutableList<HomeworkContentObject>)
+
+    @Query("UPDATE homeworkcontentobject SET complete = not complete WHERE id = :homeworkId")
+    suspend fun tickHomework(homeworkId: String)
 }
 
 @Dao
@@ -268,10 +261,13 @@ class RequestMaker {
     """
 
     private val client = HttpClient() {
-        install(HttpCookies)
+        install(HttpCookies) {
+            storage = AcceptAllCookiesStorage()
+        }
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
         }
+        //followRedirects = false //useful for debugging
     }
 
     val STUDENT_ID = stringPreferencesKey("student_id")
@@ -319,11 +315,128 @@ class RequestMaker {
         }
         //id = "demo"
 
-        if (id.lowercase() == "demo") {
+        if (id.lowercase() == "demo" || sessionId == "demo") {
             sessionId = "demo"
             userDao!!.setStudentId("demo")
             userDao!!.setStudentDob(dob)
-            return Success()
+
+            if (homeworkDao!!.getAll().size == 0) {
+                var homeworksList = mutableListOf<HomeworkContentObject>()
+                homeworksList += HomeworkContentObject(
+                    title = "Modal Jazz Improvisation",
+                    complete = false,
+                    teacher = "Mr M Teacher",
+                    subject = "Music",
+                    completionTime = "5 hours",
+                    body = "\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n",
+                    issueDate = LocalDate.now().minusDays(8).toString(),
+                    dueDate = LocalDate.now().toString(),
+                    id = "879867",
+                    attachments = "[]"
+                )
+                homeworksList += normalHomeworkToHomeworkContent(
+                    Homework(
+                        title = "Term 2 week 6",
+                        complete = false,
+                        teacher = "Mrs H Teacher",
+                        subject = "Maths",
+                        completionTime = "20 minutes",
+                        body = AnnotatedString("Complete in your booklet"),
+                        rawBody = "Complete in your booklet",
+                        issueDate = LocalDate.now().minusDays(1),
+                        dueDate = LocalDate.now().plusDays(1),
+                        id = "767539988",
+                        attachments = mutableListOf(
+                            Attachment(
+                                name = "Term 2 week 6.pdf",
+                                link = "https://attachments.classcharts.com/h/186700/401f6c71e04b551d7b3f2d84c016afdb_20251209_122813.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765590527&Signature=k4zDUbWzt283HeF826n2KCNNBHJb8e8UmSWCNMVdPsXv9%2BJaubAt6d%2BriAO3cedMWfCXI8IEVPBZYrUrKH7G9kjeH8fsmayyb0ZpgZXASCLM9xoYH%2B0iK%2BD5j5Y0NgKiQEsxOrO5JvIoQkM5hpaheRbmNMzpqumFv8cqV5JmhRBkqnEfdJDIaQygFhD70Gw7%2BCx6Co%2BIehK0M%2FXDcmh5zcLVTB2yAw3s35ZX0YF91SGUEwUcNf2dqSfRRhSsjRfkZbI8IFVVx38AB0vB%2FRpe8dA3JFDJ4dLrbUB5DQ6nIQeaAQgai7lbpIhf5xA9m2thNzUrHnq9UbBFKmURZNsXFg%3D%3D&response-content-disposition=attachment; filename=\"Term+2+week+6.pdf\"",
+                                isFile = true
+                            )
+                        )
+                    )
+                )
+                homeworksList += normalHomeworkToHomeworkContent(
+                    Homework(
+                        title = "Revision for Forces in Equilibrium Test",
+                        complete = false,
+                        teacher = "Mr D Teacher",
+                        subject = "Physics",
+                        completionTime = "60 minutes",
+                        body = AnnotatedString("Use the attached revision materials along with your class notes to revise for Forces in Equilibrium Test."),
+                        rawBody = "\n" +
+                                "\n" +
+                                "\n" +
+                                "\n" +
+                                "\n" +
+                                "\n" +
+                                "Use the attached revision materials along with your class notes to\n" +
+                                "revise for Forces in Equilibrium Test.\n" +
+                                "\n",
+                        issueDate = LocalDate.now().minusDays(4),
+                        dueDate = LocalDate.now().plusDays(1),
+                        id = "736381326",
+                        attachments = mutableListOf(
+                            Attachment(
+                                name = "Static_calculations_.pdf",
+                                link = "https://attachments.classcharts.com/h/186700/44e36a500057a8e3aac78e4a328e3943_20251031_142537.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765607973&Signature=SUa6jk4APJLCDzYDBIff5F8WvyP1WpVASSS9EKd5FSYnloGopFop%2BUxL8Mz7G3sSsFKvTYGAzGZa7eYMUfWYHcKQ%2FqWheIQCc698yCay5EIdA1TEDnR7vj9mE8nRh9%2B0carPcQ5snzXeo%2Fc3mob9uWYsUpAJVQ6ka9QsKhDnvJ8T6G9GI4xlQ8FERBldrmPkzWHCfyTOXoqf%2BLeY2N11HTUie4zzIjYsMHSFLE7n6elK6ddESyzePKC1zBt9mqMYGrK47CTdkPNPXibFY3ulHB7fCLYc6fVLIyYQHKWgKYoko8HLcTIWTKQ60YR%2FGLTBI%2FWQb75GtNJF3gMaNDk5qw%3D%3D&response-content-disposition=attachment; filename=\"Static_calculations_.pdf\"",
+                                isFile = true
+                            ),
+                            Attachment(
+                                name = "Revision Grids for Forces in Equilibrium.pdf",
+                                link = "https://attachments.classcharts.com/h/186700/df9a95fbb96b6be9fff9a7da4c1fc920_20251031_142552.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765607973&Signature=bzqj5c%2B%2BsbuofuhJ8uvW%2FMHhPFLcAnQovqLf7ZcohAWzON7mhnp4f5geqVB41%2FFs7xKjVv26BtHUL%2FTO%2BJWfpEYbC4LpxXNkuSNspddjFBwerwJhO%2FRHk3C0l1MLzuWrPLuu6D1MocqqAshEXLgSbx4IH6ldUy%2Fe9fWwuZAZ2EUS6zc%2FGKssjntdRrl0qIWAH2vLg%2B9Y%2FHelFSuzKjOshzkm4lUxlPFU0rXNadjzZ5iUDCXGVFdD5jPwjixmpUAQzIJzl1lvvAnCzvwDE1ZEqLEUMsOy8M0YzKCAgACZspZhvEbs%2ByvmixaBcsQ%2Frjtejoj%2FLNiEeGvCNx1PYCTVAA%3D%3D&response-content-disposition=attachment; filename=\"Revision+Grids+for+Forces+in+Equilibrium.pdf\"",
+                                isFile = true
+                            ),
+                            Attachment(
+                                name = "Revision Grids for Forces in Equilibrium_MS.pdf",
+                                link = "https://attachments.classcharts.com/h/186700/afce3edcef6c8f4b69e90dfb1e69b8e1_20251031_142600.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765607973&Signature=okHxBPBFQf21vj7WLEfRXuCzJ%2F1haSzszpMvg%2BCAhhFcxXvsOVE1qyVwaPVcWJ30Av698yi4YgAHZdtj%2FRtjCaRXbAgt7C3rhwib%2FvO3XKAaA5FyF8wSthve2tM%2FZe%2F8z2gZaGjYjiKE88z4cv00CYHahx7QJXnedRJZRq1SkL%2FkaKJnWKO3SBzcWN9XBD0ERsLtUuDDTZlH34aE81dLw1KuhKoFepncNQTHwkiw0E8IX2%2BvMN68rcCVXqXorW986nB0W6ThZvoaa9oOo3iGPxubVSNzMeA%2Bk7FrjVSw2k7Ing%2BU82hAyELFx7ZXB9FMocU122OllOxeot3JY28FmQ%3D%3D&response-content-disposition=attachment; filename=\"Revision+Grids+for+Forces+in+Equilibrium_MS.pdf\"",
+                                isFile = true
+                            ),
+                            Attachment(
+                                name = "Practice questions chapter 6 ANSWERS.pdf",
+                                link = "https://attachments.classcharts.com/h/186700/ebab40e394ab4347208b712a256062f0_20251104_005108.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765607973&Signature=fiG2aJOn9CIFv%2F8oHL7CmREh1jNpzGe0fj2MiVoFumw4Oo2UN83yIYyJkaSb%2BkKbG7ih9tRDkvQb4EKEagxlfLvM2CoIfIBcYWcMgYg7CF7voE7qSEo67kMeyEYjb9kwThtK4fm79F%2BwZLahqWmxsZebKs1Smdnh%2F2K4J6TiHBjQwnmfMrhOqoLqaTHXkB7oIq9pCfb2edOzbIUIu%2BWu7qQWW01wN6s%2FncML66PWiYvP9zHidhs88E5DtAXSyEQoP41xWtXZGKL3RQ%2BJVLS8OecMX%2FBM1bewnQfs4lyDsFERb2op9yPJEqX8lcr3%2BXfiigjXtpZ5Rt4PecZ%2FownWOg%3D%3D&response-content-disposition=attachment; filename=\"Practice+questions+chapter+6+ANSWERS.pdf\"",
+                                isFile = true
+                            )
+                        )
+                    )
+                )
+                val rawText = """
+            <ol>
+            <li>Complete improvements as noted in your feedback books and based
+                    on what we discuss in class on Monday 3rd.&nbsp; <b>GENERAL
+            FEEDBACK for EVERYONE</b> includes:
+            <ol>
+            <li>Check your word count</li>
+            <li>COMPARE the performance environment to, say, a Stadium and note
+            what differences are required compared to a Lunch Canteen</li>
+            <li>Use more "I am to" or "I will"</li>
+            <li>Use PHOTOS in the Health & Safety section, and generally use
+            photos where it can save you word</li>
+            <li>In the OWN ABILITY section, please refer more clearly to
+            MUSICAL CHALLENGES i.e things that are tricky/difficult in your
+            pieces that require you to rehearse in detail.&nbsp; Say what the
+            challenge is, and how you'll overcome it to become a more skilled
+            musician</li>
+            </ol>
+            </li>
+            <li><b><u>Rehearse in study and free time - you have 2 weeks until
+            final recordings!</u></b></li>
+            </ol>
+            """
+                homeworksList += HomeworkContentObject(
+                    title = "Music",
+                    complete = false,
+                    teacher = "Mr M Teacher",
+                    subject = "Music",
+                    completionTime = "2 hours",
+                    body = rawText,
+                    issueDate = LocalDate.now().minusDays(6).toString(),
+                    dueDate = LocalDate.now().plusDays(4).toString(),
+                    id = "736253715",
+                    attachments = "[]"
+                )
+                homeworkDao!!.insertAll(homeworksList)
+                return Success()
+            }
         }
 
         try {
@@ -370,7 +483,7 @@ class RequestMaker {
         Logger.d(tag="RealLoginResponseRaw", messageString=studentLoginResponse.toString())
         try {
             sessionId =
-                studentLoginResponse?.get("meta")?.jsonObject?.get("session_id")?.toString()
+                studentLoginResponse?.get("meta")?.jsonObject?.get("session_id")?.toString()?.trim('"')
         }
         catch (e: Exception) {
             Logger.w(e.toString())
@@ -378,6 +491,8 @@ class RequestMaker {
         }
         userDao!!.setStudentId(id)
         userDao!!.setStudentDob(dob)
+        studentId = id
+        studentDob = dob
 
         userDao!!.setValidLogin(true)
         return Success()
@@ -472,6 +587,7 @@ class RequestMaker {
         //    .build()
 
         login("", "")
+        Logger.d("CookiesInHomeworks") {runBlocking{client.cookies("https://www.classcharts.com").toString()}}
 
         val response = client.get("https://www.classcharts.com/apiv2student/homeworks/$studentId") {
             url {
@@ -481,6 +597,7 @@ class RequestMaker {
 
                 headers.append("Authorization", "Basic $sessionId")
             }
+            cookie("student_session_credentials", "%7B%22remember_me%22%3Atrue%2C%22session_id%22%3A%22$sessionId%22%7D")
         }
         Logger.d("SessionIDHomeworks") {sessionId.toString()}
         Logger.d("HomeworkResponse") { runBlocking{response.body<JsonObject>().toString()}}
@@ -491,68 +608,7 @@ class RequestMaker {
 
     suspend fun refreshHomeworkList(onlyIncomplete: Boolean, linkStyle: TextLinkStyles, colorScheme: ColorScheme, onFinish: () -> Unit = {}) {
         val homeworksList = mutableListOf<Homework>()
-        if (sessionId == "demo") {
-            homeworksList += Homework(
-                title = "Modal Jazz Improvisation",
-                complete = false,
-                teacher = "Mr M Teacher",
-                subject = "Music",
-                completionTime = "5 hours",
-                body = htmlToAnnotatedString("\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n",
-                    style = HtmlStyle(TextLinkStyles(
-                    SpanStyle(
-                        textDecoration = TextDecoration.Underline,
-                        color = colorScheme.primary
-                    )
-                ))),
-                rawBody = "\n\n\n\n\n\n<p><b>TASK 1&nbsp; (2 hrs)</b></p>\n<p>Gain confidence improvising over two famous Modal Jazz\ncompositions by Miles Davis, 'So What' and 'Milestones'&nbsp;</p>\n<p>- Spend time playing and internalising the scales/ modes needed\nto improvise over the chords of each song</p>\n<p>- Spend time playing the scales/ chord tones over the chords\nchanges of the songs and getting a feel for the harmonic\nprogression of the song.&nbsp;</p>\n<p>- Spend time exploring and playing different swung\nrhythms&nbsp;</p>\n<p>- Spend time improvising and developing interesting ideas.</p>\n<p><b>BACKING TRACKS</b></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=FSGWj22wV0U&amp;list=RDFSGWj22wV0U&amp;start_radio=1</a></p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><b>TASK 2 (2hrs)&nbsp;</b></p>\n<p>Start putting together a Powerpoint for Task 1 (b). Create two\nslides</p>\n<p>SLIDE 1 - Outline in detail the technical and musical\nrequirements needed to improvise in modal jazz. (Discuss everything\nincluding modes, chords scale relationships, chord changes in modal\njazz,&nbsp; rhythmic feel and articulation, phrasing, developing\nideas etc)&nbsp;</p>\n<p>SLIDE 2 - Reflect on/ analyse your ability and skills and set\nsome achievable aims for your improvising. Make sure you go into\ndetail and talk about technical specifics relating to your\ninstrument.&nbsp;</p>\n<p><br></p>\n<p><b>POWERPOINT</b> from class</p>\n<p><a href=\n\"https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1\"\ntarget=\n\"_blank\">https://www.youtube.com/watch?v=vk01tpTI3Ig&amp;list=RDvk01tpTI3Ig&amp;start_radio=1</a></p>\n<p><br></p>\n<p><br></p>\n\n",
-                issueDate = LocalDate.now().minusDays(8),
-                dueDate = LocalDate.now(),
-                id = "879867"
-            )
-            homeworksList += Homework(title="Term 2 week 6", complete=false, teacher="Mrs H Teacher", subject="Maths", completionTime="20 minutes", body=AnnotatedString("Complete in your booklet"), rawBody="Complete in your booklet", issueDate=LocalDate.now().minusDays(1), dueDate=LocalDate.now().plusDays(1), id="767539988", attachments=mutableListOf(Attachment(name="Term 2 week 6.pdf", link="https://attachments.classcharts.com/h/186700/401f6c71e04b551d7b3f2d84c016afdb_20251209_122813.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765590527&Signature=k4zDUbWzt283HeF826n2KCNNBHJb8e8UmSWCNMVdPsXv9%2BJaubAt6d%2BriAO3cedMWfCXI8IEVPBZYrUrKH7G9kjeH8fsmayyb0ZpgZXASCLM9xoYH%2B0iK%2BD5j5Y0NgKiQEsxOrO5JvIoQkM5hpaheRbmNMzpqumFv8cqV5JmhRBkqnEfdJDIaQygFhD70Gw7%2BCx6Co%2BIehK0M%2FXDcmh5zcLVTB2yAw3s35ZX0YF91SGUEwUcNf2dqSfRRhSsjRfkZbI8IFVVx38AB0vB%2FRpe8dA3JFDJ4dLrbUB5DQ6nIQeaAQgai7lbpIhf5xA9m2thNzUrHnq9UbBFKmURZNsXFg%3D%3D&response-content-disposition=attachment; filename=\"Term+2+week+6.pdf\"", isFile=true)))
-            homeworksList += Homework(title="Revision for Forces in Equilibrium Test", complete=false, teacher="Mr D Teacher", subject="Physics", completionTime="60 minutes", body=AnnotatedString("Use the attached revision materials along with your class notes to revise for Forces in Equilibrium Test."), rawBody="\n" +
-                    "\n" +
-                    "\n" +
-                    "\n" +
-                    "\n" +
-                    "\n" +
-                    "Use the attached revision materials along with your class notes to\n" +
-                    "revise for Forces in Equilibrium Test.\n" +
-                    "\n", issueDate=LocalDate.now().minusDays(4), dueDate=LocalDate.now().plusDays(1), id="736381326", attachments=mutableListOf(Attachment(name="Static_calculations_.pdf", link="https://attachments.classcharts.com/h/186700/44e36a500057a8e3aac78e4a328e3943_20251031_142537.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765607973&Signature=SUa6jk4APJLCDzYDBIff5F8WvyP1WpVASSS9EKd5FSYnloGopFop%2BUxL8Mz7G3sSsFKvTYGAzGZa7eYMUfWYHcKQ%2FqWheIQCc698yCay5EIdA1TEDnR7vj9mE8nRh9%2B0carPcQ5snzXeo%2Fc3mob9uWYsUpAJVQ6ka9QsKhDnvJ8T6G9GI4xlQ8FERBldrmPkzWHCfyTOXoqf%2BLeY2N11HTUie4zzIjYsMHSFLE7n6elK6ddESyzePKC1zBt9mqMYGrK47CTdkPNPXibFY3ulHB7fCLYc6fVLIyYQHKWgKYoko8HLcTIWTKQ60YR%2FGLTBI%2FWQb75GtNJF3gMaNDk5qw%3D%3D&response-content-disposition=attachment; filename=\"Static_calculations_.pdf\"", isFile=true), Attachment(name="Revision Grids for Forces in Equilibrium.pdf", link="https://attachments.classcharts.com/h/186700/df9a95fbb96b6be9fff9a7da4c1fc920_20251031_142552.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765607973&Signature=bzqj5c%2B%2BsbuofuhJ8uvW%2FMHhPFLcAnQovqLf7ZcohAWzON7mhnp4f5geqVB41%2FFs7xKjVv26BtHUL%2FTO%2BJWfpEYbC4LpxXNkuSNspddjFBwerwJhO%2FRHk3C0l1MLzuWrPLuu6D1MocqqAshEXLgSbx4IH6ldUy%2Fe9fWwuZAZ2EUS6zc%2FGKssjntdRrl0qIWAH2vLg%2B9Y%2FHelFSuzKjOshzkm4lUxlPFU0rXNadjzZ5iUDCXGVFdD5jPwjixmpUAQzIJzl1lvvAnCzvwDE1ZEqLEUMsOy8M0YzKCAgACZspZhvEbs%2ByvmixaBcsQ%2Frjtejoj%2FLNiEeGvCNx1PYCTVAA%3D%3D&response-content-disposition=attachment; filename=\"Revision+Grids+for+Forces+in+Equilibrium.pdf\"", isFile=true), Attachment(name="Revision Grids for Forces in Equilibrium_MS.pdf", link="https://attachments.classcharts.com/h/186700/afce3edcef6c8f4b69e90dfb1e69b8e1_20251031_142600.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765607973&Signature=okHxBPBFQf21vj7WLEfRXuCzJ%2F1haSzszpMvg%2BCAhhFcxXvsOVE1qyVwaPVcWJ30Av698yi4YgAHZdtj%2FRtjCaRXbAgt7C3rhwib%2FvO3XKAaA5FyF8wSthve2tM%2FZe%2F8z2gZaGjYjiKE88z4cv00CYHahx7QJXnedRJZRq1SkL%2FkaKJnWKO3SBzcWN9XBD0ERsLtUuDDTZlH34aE81dLw1KuhKoFepncNQTHwkiw0E8IX2%2BvMN68rcCVXqXorW986nB0W6ThZvoaa9oOo3iGPxubVSNzMeA%2Bk7FrjVSw2k7Ing%2BU82hAyELFx7ZXB9FMocU122OllOxeot3JY28FmQ%3D%3D&response-content-disposition=attachment; filename=\"Revision+Grids+for+Forces+in+Equilibrium_MS.pdf\"", isFile=true), Attachment(name="Practice questions chapter 6 ANSWERS.pdf", link="https://attachments.classcharts.com/h/186700/ebab40e394ab4347208b712a256062f0_20251104_005108.pdf?GoogleAccessId=attachments-classcharts%40edukey-classcharts.iam.gserviceaccount.com&Expires=1765607973&Signature=fiG2aJOn9CIFv%2F8oHL7CmREh1jNpzGe0fj2MiVoFumw4Oo2UN83yIYyJkaSb%2BkKbG7ih9tRDkvQb4EKEagxlfLvM2CoIfIBcYWcMgYg7CF7voE7qSEo67kMeyEYjb9kwThtK4fm79F%2BwZLahqWmxsZebKs1Smdnh%2F2K4J6TiHBjQwnmfMrhOqoLqaTHXkB7oIq9pCfb2edOzbIUIu%2BWu7qQWW01wN6s%2FncML66PWiYvP9zHidhs88E5DtAXSyEQoP41xWtXZGKL3RQ%2BJVLS8OecMX%2FBM1bewnQfs4lyDsFERb2op9yPJEqX8lcr3%2BXfiigjXtpZ5Rt4PecZ%2FownWOg%3D%3D&response-content-disposition=attachment; filename=\"Practice+questions+chapter+6+ANSWERS.pdf\"", isFile=true)))
-            val rawText = """
-            <ol>
-            <li>Complete improvements as noted in your feedback books and based
-                    on what we discuss in class on Monday 3rd.&nbsp; <b>GENERAL
-            FEEDBACK for EVERYONE</b> includes:
-            <ol>
-            <li>Check your word count</li>
-            <li>COMPARE the performance environment to, say, a Stadium and note
-            what differences are required compared to a Lunch Canteen</li>
-            <li>Use more "I am to" or "I will"</li>
-            <li>Use PHOTOS in the Health & Safety section, and generally use
-            photos where it can save you word</li>
-            <li>In the OWN ABILITY section, please refer more clearly to
-            MUSICAL CHALLENGES i.e things that are tricky/difficult in your
-            pieces that require you to rehearse in detail.&nbsp; Say what the
-            challenge is, and how you'll overcome it to become a more skilled
-            musician</li>
-            </ol>
-            </li>
-            <li><b><u>Rehearse in study and free time - you have 2 weeks until
-            final recordings!</u></b></li>
-            </ol>
-            """
-            homeworksList += Homework(title="Music", complete=false, teacher="Mr M Teacher", subject="Music", completionTime="2 hours",
-                body=htmlToAnnotatedString(rawText,
-                    style = HtmlStyle(TextLinkStyles(
-                SpanStyle(
-                    textDecoration = TextDecoration.Underline,
-                    color = colorScheme.primary
-                )))),
-                rawBody=rawText, issueDate=LocalDate.now().minusDays(6), dueDate=LocalDate.now().plusDays(4), id="736253715", attachments=mutableListOf())
-        }
-        else {
+        if (sessionId != "demo") {
             val homeworks = getHomeworks()
             if (homeworks != null) {
                 for (i in homeworks) {
@@ -585,9 +641,8 @@ class RequestMaker {
                             subject = (i.value.jsonObject.get("subject")?.toString()?: ""),
                             completionTime = (
                                     if (i.value.jsonObject.get("completion_time_value")?.toString() != "") {
-                                            i.value.jsonObject.get("completion_time_value")?.toString() + " " + i.value.jsonObject.get("completion_time_unit")?.toString()
-                                        } else "")
-                            ,
+                                        i.value.jsonObject.get("completion_time_value")?.toString() + " " + i.value.jsonObject.get("completion_time_unit")?.toString()
+                                    } else ""),
                             body = htmlToAnnotatedString(
                                 (i.value.jsonObject.get("description")?.toString()?: "No description"),
                                 style = HtmlStyle(linkStyle)
@@ -608,12 +663,18 @@ class RequestMaker {
                 onFinish()
             }
         }
+        else {
+            onFinish()
+        }
     }
 
 
 
-    suspend fun tickHomework(id: String? = studentId, onFinish: () -> Unit = {}) {
-        val response = client.get("https://www.classcharts.com/apiv2student/homeworkticked/$id") {
+    suspend fun tickHomework(homeworkId: String, onFinish: () -> Unit = {}) {
+        if (sessionId == "demo") {
+            homeworkDao!!.tickHomework(homeworkId)
+        }
+        val response = client.get("https://www.classcharts.com/apiv2student/homeworkticked/$homeworkId") {
             url {
                 parameters.append("studentId", studentId?: "")
                 headers.append("Authorization", "Basic $sessionId")
