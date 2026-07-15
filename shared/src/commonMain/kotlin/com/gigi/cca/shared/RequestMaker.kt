@@ -31,9 +31,17 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.request.cookie
+import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.Parameters
+import io.ktor.http.contentType
 import io.ktor.http.cookies
 import io.ktor.http.parameters
+import io.ktor.http.setCookie
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -49,6 +57,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Timer
 import java.util.UUID
 
@@ -317,6 +326,14 @@ class RequestMaker {
             return Success()
         }
 
+        try {
+            dob = LocalDate.parse(dob).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+        }
+        catch (e: Exception) {
+            Logger.w(e.toString())
+            Logger.w("dob is empty probably, or not in a good date format")
+        }
+
         //val requestBody = FormBody.Builder()
         //    .add("code", id)
         //    .add("remember", "true")
@@ -330,16 +347,24 @@ class RequestMaker {
         //    .build()
 
 
-        val response = client.get("https://www.classcharts.com/apiv2student/login") {
-            url {
+        val response = client.post("https://www.classcharts.com/apiv2student/login") {
+            /*url {
                 parameters.append("code", id)
                 parameters.append("remember", "true")
                 parameters.append("recaptcha-token", "no-token-available")
                 parameters.append("dob", dob)
-            }
+            }*/
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody(FormDataContent(Parameters.build {
+                append("code", id)
+                append("remember_me", "1")
+                append("recaptcha-token", "no-token-available")
+                append("dob", dob)
+            }))
+            //cookie("student_session_credentials", "%7B%22remember_me%22%3Atrue%2C%22session_id%22%3A%22$id%22%7D")
         }
 
-        if (!(response.status.value in 200..299)) return ErrorNetwork() //throw _root_ide_package_.okio.IOException("Unexpected code $response")
+        if (!(response.status.value in 200..302)) return ErrorNetwork() //throw _root_ide_package_.okio.IOException("Unexpected code $response")
         studentLoginResponse = response.body()//gson.fromJson(response.bodyAsText(), JsonObject::class)
         Logger.d("StudentIDInLoginFunc") {id}
         Logger.d(tag="RealLoginResponseRaw", messageString=studentLoginResponse.toString())
@@ -348,6 +373,7 @@ class RequestMaker {
                 studentLoginResponse?.get("meta")?.jsonObject?.get("session_id")?.toString()
         }
         catch (e: Exception) {
+            Logger.w(e.toString())
             return ErrorInvalidLogin()
         }
         userDao!!.setStudentId(id)
@@ -456,7 +482,8 @@ class RequestMaker {
                 headers.append("Authorization", "Basic $sessionId")
             }
         }
-
+        Logger.d("SessionIDHomeworks") {sessionId.toString()}
+        Logger.d("HomeworkResponse") { runBlocking{response.body<JsonObject>().toString()}}
         if (!(response.status.value in 200..299)) return null
 
         return response.body<JsonObject>().get("data")?.jsonObject

@@ -51,13 +51,13 @@ import kotlin.collections.plusAssign
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}) {
+fun TimetableScreen(navBar: @Composable () -> Unit = @Composable {}, requestMaker: RequestMaker) {
     val lessonsList = remember { mutableStateListOf<Lesson>() }
     var dateState = rememberDatePickerState(initialDisplayMode = DisplayMode.Picker)
     val getLocalDateObjectForSelected = { LocalDate.ofEpochDay(dateState.selectedDateMillis!!.toLong() / (24 * 60 * 60 * 1000)) }
     var showDatePicker by remember { mutableStateOf(false) }
     var lessonsListResponse by remember { mutableStateOf<Either<MutableList<Lesson>, ErrorType>?>(null) }
-    val requestMaker by remember { mutableStateOf(RequestMaker()) }
+    //val requestMaker by remember { mutableStateOf(RequestMaker()) }
 
     if (dateState.selectedDateMillis == null) dateState.selectedDateMillis =
         getMillisForLocalDate(LocalDate.now())

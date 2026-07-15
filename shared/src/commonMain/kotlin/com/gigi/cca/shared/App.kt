@@ -307,7 +307,7 @@ class App {
                 }
             }
             composable<TimetableScreenObject> {
-                TimetableScreen(navBar)
+                TimetableScreen(navBar, requestMaker)
             }
         }
     }
