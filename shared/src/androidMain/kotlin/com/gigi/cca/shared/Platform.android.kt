@@ -25,7 +25,10 @@ actual fun getDatabaseBuilder(context: Any?): RoomDatabase.Builder<AppDatabase> 
             name = appContext!!.getDatabasePath("main.db").absolutePath
         )
     }
-    error("uhh there's no context to make a database with")
+    else {
+        Logger.d("thecontext") {context.toString()}
+        error("uhh there's no context to make a database with")
+    }
 }
 
 private fun String.getMimeType(): String? {

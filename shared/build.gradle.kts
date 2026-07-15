@@ -8,12 +8,12 @@ plugins {
     alias(libs.plugins.androidx.room)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.kotlin.compose)
+    kotlin("plugin.serialization") version "1.9.22"
 }
 
 room {
     schemaDirectory("$projectDir/schemas")
 }
-
 
 
 kotlin {
@@ -91,6 +91,8 @@ kotlin {
                 implementation("org.jetbrains.compose.ui:ui-tooling-preview:1.10.0")
                 implementation(compose.components.resources)
                 implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.2")
+                implementation("io.ktor:ktor-client-content-negotiation:${libs.versions.ktor.get()}")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:${libs.versions.ktor.get()}")
             }
         }
 

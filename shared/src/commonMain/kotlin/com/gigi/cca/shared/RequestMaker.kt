@@ -18,6 +18,7 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
+import androidx.room.Upsert
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import arrow.core.Either
 import be.digitalia.compose.htmlconverter.HtmlStyle
@@ -28,9 +29,12 @@ import co.touchlab.kermit.Logger
 //import com.google.gson.reflect.TypeToken
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.get
+import io.ktor.http.cookies
 import io.ktor.http.parameters
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -87,6 +91,7 @@ data class Lesson(
     @ColumnInfo("free_period") val freePeriod: Boolean = false
 )
 
+@Serializable
 open class ScreenObject
 
 @Serializable
@@ -122,47 +127,71 @@ object TimetableScreenObject : ScreenObject()
 @Entity
 data class UserInfo(
     @PrimaryKey val id: Int = 0,
-    @ColumnInfo("student_id") val studentId: String,
-    @ColumnInfo("student_dob") val studentDob: String,
-    @ColumnInfo("valid_login") val validLogin: Boolean,
-    @ColumnInfo("last_online") val lastOnline: String
+    @ColumnInfo("student_id") val studentId: String = "",
+    @ColumnInfo("student_dob") val studentDob: String = "2000-01-01",
+    @ColumnInfo("valid_login") val validLogin: Boolean = false,
+    @ColumnInfo("last_online") val lastOnline: String = "2000-01-01"
 )
 
 
 @Dao
 interface HomeworkDao {
     @Query("SELECT * FROM homeworkcontentobject WHERE NOT (complete AND :onlyIncomplete) ORDER BY due_date ASC")
-    fun getAll(onlyIncomplete: Boolean = false): MutableList<HomeworkContentObject>
+    suspend fun getAll(onlyIncomplete: Boolean = false): MutableList<HomeworkContentObject>
 
     @Insert(onConflict = REPLACE)
-    fun insertAll(homeworks: MutableList<HomeworkContentObject>)
+    suspend fun insertAll(homeworks: MutableList<HomeworkContentObject>)
 }
 
 @Dao
 interface LessonDao {
     @Query("SELECT * FROM lesson WHERE date = :date ORDER BY start_time ASC")
-    fun getDay(date: String = LocalDate.now().toString()): MutableList<Lesson>
+    suspend fun getDay(date: String = LocalDate.now().toString()): MutableList<Lesson>
 
     @Insert(onConflict = REPLACE)
-    fun insertDay(lessons: MutableList<Lesson>)
+    suspend fun insertDay(lessons: MutableList<Lesson>)
 }
 
 @Dao
 interface UserDao {
     @Query("SELECT * FROM userinfo WHERE id = :id")
-    fun getUserInfo(id: Int = 0): UserInfo
+    suspend fun getUserInfo(id: Int = 0): UserInfo?
 
-    @Query("UPDATE userinfo SET student_id = :studentId WHERE id == :id")
-    fun setStudentId(studentId: String, id: Int = 0)
+    //@Query("""
+    //    IF EXISTS (SELECT 1 FROM userinfo WHERE id = :id)
+    //    BEGIN
+    //        UPDATE userinfo SET student_id = :studentId WHERE id == :id
+    //    ELSE
+    //    BEGIN
+    //        INSERT userinfo(id, student_id) VALUES(:id, :studentId)
+    //    END
+    //""")//
+    @Query("INSERT INTO userinfo(id, student_id, student_dob, valid_login, last_online) VALUES(:id, :studentId, '2000-01-01', false, '2000-01-01') " +
+            "ON CONFLICT(id) DO " +
+            "UPDATE SET student_id = :studentId WHERE id == :id" +
+            "")
+    suspend fun setStudentId(studentId: String, id: Int = 0) //TODO: make it not have null for other fields when inseritng new
 
-    @Query("UPDATE userinfo SET student_dob = :studentDob WHERE id == :id")
-    fun setStudentDob(studentDob: String, id: Int = 0)
+    //@Query("UPDATE userinfo SET student_dob = :studentDob WHERE id == :id")
+    @Query("INSERT INTO userinfo(id, student_dob, student_id, valid_login, last_online) VALUES(:id, :studentDob, '', false, '2000-01-01') " +
+            "ON CONFLICT(id) DO " +
+            "UPDATE SET student_dob = :studentDob WHERE id == :id" +
+            "")
+    suspend fun setStudentDob(studentDob: String, id: Int = 0)
 
-    @Query("UPDATE userinfo SET valid_login = :validLogin WHERE id == :id")
-    fun setValidLogin(validLogin: Boolean, id: Int = 0)
+    //@Query("UPDATE userinfo SET valid_login = :validLogin WHERE id == :id")
+    @Query("INSERT INTO userinfo(id, valid_login, student_id, student_dob, last_online) VALUES(:id, :validLogin, '', '2000-01-01', '2000-01-01') " +
+            "ON CONFLICT(id) DO " +
+            "UPDATE SET valid_login = :validLogin WHERE id == :id " +
+            "")
+    suspend fun setValidLogin(validLogin: Boolean, id: Int = 0)
 
-    @Query("UPDATE userinfo SET last_online = :lastOnline WHERE id == :id")
-    fun setLastOnline(lastOnline: String, id: Int = 0)
+    //@Query("UPDATE userinfo SET last_online = :lastOnline WHERE id == :id")
+    @Query("INSERT INTO userinfo(id, last_online, student_id, student_dob, valid_login) VALUES(:id, :lastOnline, '', '2000-01-01', false) " +
+            "ON CONFLICT(id) DO " +
+            "UPDATE SET last_online = :lastOnline WHERE id == :id" +
+            "")
+    suspend fun setLastOnline(lastOnline: String, id: Int = 0)
 }
 
 @Database(entities = [HomeworkContentObject::class, Lesson::class, UserInfo::class], version = 1, exportSchema = false)
@@ -231,6 +260,9 @@ class RequestMaker {
 
     private val client = HttpClient() {
         install(HttpCookies)
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true })
+        }
     }
 
     val STUDENT_ID = stringPreferencesKey("student_id")
@@ -262,13 +294,19 @@ class RequestMaker {
     suspend fun login(id: String? = null, dob: String? = null): ErrorType {
         var id: String = id?: ""
         var dob: String = dob?: ""
-        val userInfo = userDao!!.getUserInfo()
+        var userInfo = userDao!!.getUserInfo()
+        if (userInfo == null) {
+            userDao!!.setStudentId(id)
+            userDao!!.setStudentDob(dob)
+            userInfo = userDao!!.getUserInfo()
+        }
         if (id == "") {
             // Log.d("DataStoredID", idFlow().first())
-            id = userInfo.studentId
+            Logger.d("DataStored") {userInfo.toString()}
+            id = userInfo!!.studentId
         }
         if (dob == "") {
-            dob = userInfo.studentDob
+            dob = userInfo!!.studentDob
         }
         //id = "demo"
 
@@ -294,7 +332,7 @@ class RequestMaker {
 
         val response = client.get("https://www.classcharts.com/apiv2student/login") {
             url {
-                parameters.append("code", "id")
+                parameters.append("code", id)
                 parameters.append("remember", "true")
                 parameters.append("recaptcha-token", "no-token-available")
                 parameters.append("dob", dob)
@@ -302,8 +340,9 @@ class RequestMaker {
         }
 
         if (!(response.status.value in 200..299)) return ErrorNetwork() //throw _root_ide_package_.okio.IOException("Unexpected code $response")
-        studentLoginResponse = response.body<JsonObject>()//gson.fromJson(response.bodyAsText(), JsonObject::class)
-        Logger.d(tag="RealLoginResponse", messageString=studentLoginResponse.toString())
+        studentLoginResponse = response.body()//gson.fromJson(response.bodyAsText(), JsonObject::class)
+        Logger.d("StudentIDInLoginFunc") {id}
+        Logger.d(tag="RealLoginResponseRaw", messageString=studentLoginResponse.toString())
         try {
             sessionId =
                 studentLoginResponse?.get("meta")?.jsonObject?.get("session_id")?.toString()

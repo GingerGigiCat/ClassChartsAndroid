@@ -17,6 +17,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -51,6 +52,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import kotlin.math.max
 import kotlin.math.min
@@ -82,13 +84,11 @@ class App {
         var studentId by remember { mutableStateOf(requestMaker.studentId) }
         var studentDob by remember { mutableStateOf(requestMaker.studentDob) }
         var loginResponse by remember {
-            mutableStateOf(runBlocking {
-                requestMaker.login(
-                    studentId,
-                    studentDob
-                )
-            })
+            mutableStateOf<ErrorType>(ErrorWaiting()) // requestMaker.login(studentId, studentDob)
         } //TODO: Make this not runblocking and use the login sign from the db
+        LaunchedEffect(Dispatchers.IO) {
+            loginResponse = requestMaker.login(studentId, studentDob)
+        }
         val homeworksList = remember { mutableStateListOf<Homework>() }
         var updateHomeworksColumnNeeded by remember { mutableStateOf(true) }
         var triggerHomeworkListUpdate by remember { mutableStateOf(true) }
@@ -119,7 +119,7 @@ class App {
         if (loginResponse is ErrorInvalidLogin) {
             startDestination = LoginScreenObject
         } // TODO: add handling for waiting and network error
-        if (loginResponse is Success) {
+        if (loginResponse is Success || loginResponse is ErrorWaiting) {
             startDestination = HomeworkListObject
         }
         Logger.d("LoginResponse") { loginResponse.toString() } // TODO: figure out why this is always error
@@ -169,10 +169,10 @@ class App {
                                         "HomeworksListUpdate"
                                     )
                                     { "Updating the homework list due to db change" }
-                                    val rawHomeworksList =
+                                    val rawHomeworksList = runBlocking(Dispatchers.IO) {
                                         requestMaker.homeworkDao!!.getAll(
                                             showCompletedHomeworksChecked
-                                        )
+                                        ) }
                                     homeworksList.clear()
                                     for (rawHomework in rawHomeworksList) {
                                         homeworksList += requestMaker.homeworkContentToNormalHomework(
@@ -182,9 +182,11 @@ class App {
                                     }
                                 } else if (!triggerHomeworkListUpdate) {
                                     val rawHomeworksList =
-                                        requestMaker.homeworkDao!!.getAll(
-                                            showCompletedHomeworksChecked
-                                        )
+                                        runBlocking(Dispatchers.IO) {
+                                            requestMaker.homeworkDao!!.getAll(
+                                                showCompletedHomeworksChecked
+                                            )
+                                        }
                                     homeworksList.clear()
                                     for (rawHomework in rawHomeworksList) {
                                         homeworksList += requestMaker.homeworkContentToNormalHomework(
