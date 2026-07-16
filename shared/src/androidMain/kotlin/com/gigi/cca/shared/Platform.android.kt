@@ -23,7 +23,7 @@ actual fun getDatabaseBuilder(context: Any?): RoomDatabase.Builder<AppDatabase> 
         //appContext!!.deleteDatabase("main.db")
         return Room.databaseBuilder<AppDatabase>(
             context = appContext!!,
-            name = appContext!!.getDatabasePath("main.db").absolutePath
+            name = appContext!!.getDatabasePath("main2.db").absolutePath,
         )
     }
     else {
