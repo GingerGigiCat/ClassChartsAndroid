@@ -90,7 +90,7 @@ fun LogInScreen(modifier:Modifier = Modifier, requestMaker: RequestMaker, naviga
                 onClick = {
                     runBlocking {
                         loginResponse = requestMaker.login(
-                            id = studentId,
+                            code = studentId,
                             dob = getLocalDateObjectForSelected().toString()
                         )
                     }

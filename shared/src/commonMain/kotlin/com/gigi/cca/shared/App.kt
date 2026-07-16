@@ -84,7 +84,7 @@ class App {
         var studentId by remember { mutableStateOf(requestMaker.studentId) }
         var studentDob by remember { mutableStateOf(requestMaker.studentDob) }
         var loginResponse by remember {
-            mutableStateOf<ErrorType>(ErrorWaiting()) // requestMaker.login(studentId, studentDob)
+            mutableStateOf<ErrorType>(ErrorWaiting()) // requestMaker.login(studentCode, studentDob)
         } //TODO: Make this not runblocking and use the login sign from the db
         LaunchedEffect(Dispatchers.IO) {
             loginResponse = requestMaker.login(studentId, studentDob)
@@ -116,12 +116,13 @@ class App {
             )
         )
 
-        if (loginResponse is ErrorInvalidLogin) {
-            startDestination = LoginScreenObject
-        } // TODO: add handling for waiting and network error
         if (loginResponse is Success || loginResponse is ErrorWaiting) {
             startDestination = HomeworkListObject
         }
+        if (loginResponse is ErrorInvalidLogin || requestMaker.sessionId == null) {
+            startDestination = LoginScreenObject
+        } // TODO: add handling for waiting and network error
+
         Logger.d("LoginResponse") { loginResponse.toString() } // TODO: figure out why this is always error
 
         val navBar = @Composable {

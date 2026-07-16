@@ -20,6 +20,7 @@ actual fun getDatabaseBuilder(context: Any?): RoomDatabase.Builder<AppDatabase> 
     Logger.d("Context got!")
     appContext = context as Context?
     if (appContext != null) {
+        //appContext!!.deleteDatabase("main.db")
         return Room.databaseBuilder<AppDatabase>(
             context = appContext!!,
             name = appContext!!.getDatabasePath("main.db").absolutePath

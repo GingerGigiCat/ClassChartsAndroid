@@ -34,6 +34,7 @@ import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.Parameters
 import io.ktor.http.contentType
@@ -126,7 +127,7 @@ object TimetableScreenObject : ScreenObject()
 @Entity
 data class UserInfo(
     @PrimaryKey val id: Int = 0,
-    @ColumnInfo("student_id") val studentId: String = "",
+    @ColumnInfo("student_code") val studentCode: String = "",
     @ColumnInfo("student_dob") val studentDob: String = "2000-01-01",
     @ColumnInfo("valid_login") val validLogin: Boolean = false,
     @ColumnInfo("last_online") val lastOnline: String = "2000-01-01"
@@ -162,34 +163,34 @@ interface UserDao {
     //@Query("""
     //    IF EXISTS (SELECT 1 FROM userinfo WHERE id = :id)
     //    BEGIN
-    //        UPDATE userinfo SET student_id = :studentId WHERE id == :id
+    //        UPDATE userinfo SET student_id = :studentCode WHERE id == :id
     //    ELSE
     //    BEGIN
-    //        INSERT userinfo(id, student_id) VALUES(:id, :studentId)
+    //        INSERT userinfo(id, student_id) VALUES(:id, :studentCode)
     //    END
     //""")//
-    @Query("INSERT INTO userinfo(id, student_id, student_dob, valid_login, last_online) VALUES(:id, :studentId, '2000-01-01', false, '2000-01-01') " +
+    @Query("INSERT INTO userinfo(id, student_code, student_dob, valid_login, last_online) VALUES(:id, :studentCode, '2000-01-01', false, '2000-01-01') " +
             "ON CONFLICT(id) DO " +
-            "UPDATE SET student_id = :studentId WHERE id == :id" +
+            "UPDATE SET student_code = :studentCode WHERE id == :id" +
             "")
-    suspend fun setStudentId(studentId: String, id: Int = 0) //TODO: make it not have null for other fields when inseritng new
+    suspend fun setStudentCode(studentCode: String, id: Int = 0) //TODO: make it not have null for other fields when inseritng new
 
     //@Query("UPDATE userinfo SET student_dob = :studentDob WHERE id == :id")
-    @Query("INSERT INTO userinfo(id, student_dob, student_id, valid_login, last_online) VALUES(:id, :studentDob, '', false, '2000-01-01') " +
+    @Query("INSERT INTO userinfo(id, student_dob, student_code, valid_login, last_online) VALUES(:id, :studentDob, '', false, '2000-01-01') " +
             "ON CONFLICT(id) DO " +
             "UPDATE SET student_dob = :studentDob WHERE id == :id" +
             "")
     suspend fun setStudentDob(studentDob: String, id: Int = 0)
 
     //@Query("UPDATE userinfo SET valid_login = :validLogin WHERE id == :id")
-    @Query("INSERT INTO userinfo(id, valid_login, student_id, student_dob, last_online) VALUES(:id, :validLogin, '', '2000-01-01', '2000-01-01') " +
+    @Query("INSERT INTO userinfo(id, valid_login, student_code, student_dob, last_online) VALUES(:id, :validLogin, '', '2000-01-01', '2000-01-01') " +
             "ON CONFLICT(id) DO " +
             "UPDATE SET valid_login = :validLogin WHERE id == :id " +
             "")
     suspend fun setValidLogin(validLogin: Boolean, id: Int = 0)
 
     //@Query("UPDATE userinfo SET last_online = :lastOnline WHERE id == :id")
-    @Query("INSERT INTO userinfo(id, last_online, student_id, student_dob, valid_login) VALUES(:id, :lastOnline, '', '2000-01-01', false) " +
+    @Query("INSERT INTO userinfo(id, last_online, student_code, student_dob, valid_login) VALUES(:id, :lastOnline, '', '2000-01-01', false) " +
             "ON CONFLICT(id) DO " +
             "UPDATE SET last_online = :lastOnline WHERE id == :id" +
             "")
@@ -215,6 +216,7 @@ fun getRoomDatabase(context: Any? = null): AppDatabase {
     return getDatabaseBuilder(context)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
+        .fallbackToDestructiveMigration(dropAllTables = true)
         .build()
 }
 
@@ -230,7 +232,7 @@ class ErrorWaiting : ErrorType()
 class RequestMaker {
     var sessionId: String? = null
     var appContext: Any? = null
-    var studentId: String? = null
+    var studentId: String? = null // this is the NUMBER ID of the student, not the login code
     var studentDob: String? = null
     var studentLoginResponse: JsonObject? = null
     var name: String = ""
@@ -267,7 +269,7 @@ class RequestMaker {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
         }
-        //followRedirects = false //useful for debugging
+        followRedirects = true //useful for debugging
     }
 
     val STUDENT_ID = stringPreferencesKey("student_id")
@@ -296,28 +298,28 @@ class RequestMaker {
     }
 
 
-    suspend fun login(id: String? = null, dob: String? = null): ErrorType {
-        var id: String = id?: ""
+    suspend fun login(code: String? = null, dob: String? = null): ErrorType {
+        var code: String = code?.trim(' ')?: ""
         var dob: String = dob?: ""
         var userInfo = userDao!!.getUserInfo()
         if (userInfo == null) {
-            userDao!!.setStudentId(id)
+            userDao!!.setStudentCode(code)
             userDao!!.setStudentDob(dob)
             userInfo = userDao!!.getUserInfo()
         }
-        if (id == "") {
+        if (code == "") {
             // Log.d("DataStoredID", idFlow().first())
             Logger.d("DataStored") {userInfo.toString()}
-            id = userInfo!!.studentId
+            code = userInfo!!.studentCode
         }
         if (dob == "") {
             dob = userInfo!!.studentDob
         }
         //id = "demo"
 
-        if (id.lowercase() == "demo" || sessionId == "demo") {
+        if (code.lowercase() == "demo" || sessionId == "demo") {
             sessionId = "demo"
-            userDao!!.setStudentId("demo")
+            userDao!!.setStudentCode("demo")
             userDao!!.setStudentDob(dob)
 
             if (homeworkDao!!.getAll().size == 0) {
@@ -469,7 +471,7 @@ class RequestMaker {
             }*/
             contentType(ContentType.Application.FormUrlEncoded)
             setBody(FormDataContent(Parameters.build {
-                append("code", id)
+                append("code", code)
                 append("remember_me", "1")
                 append("recaptcha-token", "no-token-available")
                 append("dob", dob)
@@ -479,7 +481,7 @@ class RequestMaker {
 
         if (!(response.status.value in 200..302)) return ErrorNetwork() //throw _root_ide_package_.okio.IOException("Unexpected code $response")
         studentLoginResponse = response.body()//gson.fromJson(response.bodyAsText(), JsonObject::class)
-        Logger.d("StudentIDInLoginFunc") {id}
+        Logger.d("StudentCodeInLoginFunc") {code}
         Logger.d(tag="RealLoginResponseRaw", messageString=studentLoginResponse.toString())
         try {
             sessionId =
@@ -489,12 +491,12 @@ class RequestMaker {
             Logger.w(e.toString())
             return ErrorInvalidLogin()
         }
-        userDao!!.setStudentId(id)
+        userDao!!.setStudentCode(code)
         userDao!!.setStudentDob(dob)
-        studentId = id
         studentDob = dob
 
         userDao!!.setValidLogin(true)
+        studentPing() // Get and set student ID (not login code)
         return Success()
     }
 
@@ -535,40 +537,57 @@ class RequestMaker {
         )
     }
 
-    val nothingimportantignorethisitscommentedoutbecauseitwasntbeingused = """
-    fun studentPing(): Boolean { // Updates cookies maybe
-        val response = client.get("https://www.classcharts.com/apiv2student/ping") {
+
+    suspend fun studentPing(): Boolean { // Updates cookies maybe
+        Logger.d("SessionIDInPing") {sessionId.toString()}
+        val response = client.post("https://www.classcharts.com/apiv2student/ping") {
             url {
-                parameters.append("include_data", "true")
                 headers.append("Authorization", "Basic $sessionId")
                 
             }
+            contentType(ContentType.Application.FormUrlEncoded)
+            setBody(FormDataContent(Parameters.build {
+                append("include_data", "true")
+            }))
         }
+        val logTemp = response.bodyAsText()
+        Logger.d("pingresonse") {logTemp}
+        val jsonResponse = response.body<JsonObject?>()
+
+        try {
+            sessionId = jsonResponse?.get("meta")?.jsonObject?.get("session_id")?.toString()?.trim('"')?: sessionId
+            studentId = jsonResponse?.get("data")?.jsonObject?.get("user")?.jsonObject?.get("id")?.toString()?.trim('"')?: studentId
+            return true
+        }
+        catch (e: Error) {
+            return false
+        }
+
         
         //val requestBody = FormBody.Builder()
         //    .add("include_data", "true")
         //    .build()
 
-        val request = Request.Builder()
-            .url("https://www.classcharts.com/apiv2student/ping")
-            .header("Authorization", "Basic $sessionId")
-            .post(requestBody)
-            .build()
+        //val request = Request.Builder()
+        //    .url("https://www.classcharts.com/apiv2student/ping")
+        //    .header("Authorization", "Basic $sessionId")
+        //    .post(requestBody)
+        //    .build()
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code {DOLLARSIGNbutitwasinterferingwiththecommentingout}response")
-            val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
-            try {
-                //sessionId = jsonResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
-                // studentId = jsonResponse?.getAsJsonObject("data")?.getAsJsonObject("user")?.get("id")?.asString
-                return true
-            }
-            catch (e: Error) {
-                return false
-            }
-        }
+        //client.newCall(request).execute().use { response ->
+        //    if (!response.isSuccessful) throw _root_ide_package_.okio.IOException("Unexpected code {DOLLARSIGNbutitwasinterferingwiththecommentingout}response")
+        //    val jsonResponse = gson.fromJson(response.body?.string(), JsonObject::class.java)
+        //    try {
+        //        //sessionId = jsonResponse?.getAsJsonObject("meta")?.get("session_id")?.asString
+        //        // studentCode = jsonResponse?.getAsJsonObject("data")?.getAsJsonObject("user")?.get("id")?.asString
+        //        return true
+        //    }
+        //    catch (e: Error) {
+        //        return false
+        //    }
+
     }
-    """
+
 
     suspend fun getHomeworks(startDate: LocalDate = LocalDate.now().minusDays(45),
                              endDate: LocalDate = LocalDate.now().plusDays(366)): JsonObject? {
@@ -676,7 +695,7 @@ class RequestMaker {
         }
         val response = client.get("https://www.classcharts.com/apiv2student/homeworkticked/$homeworkId") {
             url {
-                parameters.append("studentId", studentId?: "")
+                parameters.append("studentCode", studentId?: "")
                 headers.append("Authorization", "Basic $sessionId")
             }
         }
@@ -685,7 +704,7 @@ class RequestMaker {
 
         //val url = "https://www.classcharts.com/apiv2student/homeworkticked/$id".toHttpUrlOrNull()!!
         //    .newBuilder()
-        //    .addQueryParameter("studentId", studentId)
+        //    .addQueryParameter("studentCode", studentCode)
         //    .build()
 
         //val request = Request.Builder()
