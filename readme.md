@@ -1,6 +1,6 @@
 # Classcharts for Android
 
-This is a *native* android client for [classcharts](https://www.tes.com/en-gb/for-schools/class-charts) (the horrendous student management system my school switched to this year) written in kotlin with the jetpack compose framework for hack club's [midnight](http://midnight.hackclub.com)!
+This is a *native* android client for [classcharts](https://www.tes.com/en-gb/for-schools/class-charts) (the horrendous student management system my school switched to this year) written in kotlin with the jetpack compose framework for hack club's [midnight](http://midnight.hackclub.com), and now continued for [horizons](https://horizons.hackclub.com/)!
 
 The minimum SDK for this app is 26, and to you that means that the minimum android version is android 8 (oreo)
 
