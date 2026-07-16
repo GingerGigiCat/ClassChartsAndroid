@@ -25,7 +25,7 @@ Filtering of only completed or all homeworks
 
 To download the apk, go to [releases](https://github.com/GingerGigiCat/ClassChartsAndroid/releases), expand the assets section on the latest release, and download `classchartsandroid.apk` (or whichever file ends in .apk) to your android phone.
 
-Once the apk file has downloaded, tap it to open it, click through any complaints from your phone about sources allowed to install from, and it should install!
+Once the apk file has downloaded, tap it to open it, click through any complaints from your phone about being allowed to install from unknown sources (this isn't sketchy! It's [normal for sideloading](https://www.wikihow.com/Allow-Apps-from-Unknown-Sources-on-Android), I promise), and it should install!
 
 You can then open it from your normal home launcher!
 
