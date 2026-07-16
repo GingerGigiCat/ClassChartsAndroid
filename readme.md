@@ -43,6 +43,8 @@ This is my first time ever using kotlin and jetpack compose, so make of that wha
 
 I've ported most of the code to kotlin multiplatform but have not yet persuaded it to build for desktop because the theme code is android specific. The hardest parts about porting it were fixing dependencies (so many dependencies) and switching networking systems.
 
+I did not use AI to write code, however I did use it to help with fixing dependencies and finding the right versions, as well as to help fix isolated areas of code (including me missing i had the student id as null).
+
 Here is my todo list for this app, in no particular order:
 
 Make ticking a homework work on the actual homework page
