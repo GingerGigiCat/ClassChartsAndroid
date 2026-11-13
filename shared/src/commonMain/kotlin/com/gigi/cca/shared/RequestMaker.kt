@@ -486,6 +486,7 @@ class RequestMaker {
         try {
             sessionId =
                 studentLoginResponse?.get("meta")?.jsonObject?.get("session_id")?.toString()?.trim('"')
+            studentId = studentLoginResponse?.get("data")?.jsonObject?.get("id")?.toString()?.trim('"')
         }
         catch (e: Exception) {
             Logger.w(e.toString())
@@ -496,7 +497,7 @@ class RequestMaker {
         studentDob = dob
 
         userDao!!.setValidLogin(true)
-        studentPing() // Get and set student ID (not login code)
+        //studentPing() // Get and set student ID (not login code)
         return Success()
     }
 
@@ -538,17 +539,19 @@ class RequestMaker {
     }
 
 
+    @Deprecated("Ping is deprecated as it doesn't really like to work and you can do anything ping could do by just using login instead")
     suspend fun studentPing(): Boolean { // Updates cookies maybe
         Logger.d("SessionIDInPing") {sessionId.toString()}
-        val response = client.post("https://www.classcharts.com/apiv2student/ping") {
+        val response = client.get("https://www.classcharts.com/apiv2student/ping") {
             url {
                 headers.append("Authorization", "Basic $sessionId")
                 
             }
-            contentType(ContentType.Application.FormUrlEncoded)
-            setBody(FormDataContent(Parameters.build {
-                append("include_data", "true")
-            }))
+            //contentType(ContentType.Application.FormUrlEncoded)
+            //setBody(FormDataContent(Parameters.build {
+            //    append("include_data", "true")
+            //}))
+            cookie("student_session_credentials", "%7B%22remember_me%22%3Atrue%2C%22session_id%22%3A%22$sessionId%22%7D")
         }
         val logTemp = response.bodyAsText()
         Logger.d("pingresonse") {logTemp}
@@ -607,6 +610,7 @@ class RequestMaker {
 
         login("", "")
         Logger.d("CookiesInHomeworks") {runBlocking{client.cookies("https://www.classcharts.com").toString()}}
+        Logger.d("studentIdInHomeworks") {studentId?:""}
 
         val response = client.get("https://www.classcharts.com/apiv2student/homeworks/$studentId") {
             url {
