@@ -1,53 +1,55 @@
 package com.gigi.cca.shared
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.webkit.MimeTypeMap
+import android.os.Build
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.UriHandler
-import androidx.room.Room
-import androidx.room.RoomDatabase
-import androidx.core.net.toUri
-import co.touchlab.kermit.Logger
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
-actual fun platform() = "Android"
-
-var appContext: Context? = null
-
-actual fun getDatabaseBuilder(context: Any?): RoomDatabase.Builder<AppDatabase> {
-    Logger.d("Context got!")
-    appContext = context as Context?
-    if (appContext != null) {
-        //appContext!!.deleteDatabase("main.db")
-        return Room.databaseBuilder<AppDatabase>(
-            context = appContext!!,
-            name = appContext!!.getDatabasePath("main2.db").absolutePath,
-        )
-    }
-    else {
-        Logger.d("thecontext") {context.toString()}
-        error("uhh there's no context to make a database with")
-    }
+actual fun createStore(context: Any?): KeyValueStore {
+    val appContext = context as? Context ?: error("Android needs a Context to store data")
+    return FileStore(File(appContext.filesDir, "classcharts"))
 }
 
-private fun String.getMimeType(): String? {
-    return MimeTypeMap.getFileExtensionFromUrl(toString())?.run {
-        MimeTypeMap.getSingleton().getMimeTypeFromExtension(lowercase())
-    }?: "text/html"
+actual fun usesTouchInput(): Boolean = true
+
+actual val isDesktopApp: Boolean = false
+
+actual fun netConfig(): NetConfig = NetConfig.Direct
+
+@Composable
+actual fun platformColorScheme(dark: Boolean): ColorScheme? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+    val context = LocalContext.current
+    return if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
 }
 
+/** One JSON file per key, written atomically so a crash mid-write cannot corrupt the cache. */
+internal class FileStore(private val dir: File) : KeyValueStore {
+    private fun file(key: String) = File(dir, key.replace(Regex("[^A-Za-z0-9_-]"), "_") + ".json")
 
-actual fun openUriMime(uri: String) {
-    if (appContext != null) {
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(
-                uri.toUri(),
-                uri.getMimeType()
-            )
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+    override fun get(key: String): String? = runCatching { file(key).takeIf { it.exists() }?.readText() }.getOrNull()
+
+    override fun put(key: String, value: String) {
+        runCatching {
+            dir.mkdirs()
+            val target = file(key)
+            val temp = File(dir, target.name + ".tmp")
+            temp.writeText(value)
+            runCatching {
+                Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            }.onFailure {
+                Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
         }
-        appContext!!.startActivity(intent)
+    }
+
+    override fun remove(key: String) {
+        runCatching { file(key).delete() }
     }
 }

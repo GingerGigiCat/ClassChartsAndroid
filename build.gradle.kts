@@ -9,5 +9,6 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.android.lint) apply false
     alias(libs.plugins.jetbrainsCompose) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
 }
 val kotlinJvmTarget by extra("11")

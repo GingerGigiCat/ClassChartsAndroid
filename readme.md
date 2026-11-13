@@ -1,6 +1,6 @@
 # Classcharts for Android
 
-This is a *native* android client for [classcharts](https://www.tes.com/en-gb/for-schools/class-charts) (the horrendous student management system my school switched to this year) written in kotlin with the jetpack compose framework for hack club's [midnight](http://midnight.hackclub.com), and now continued for [horizons](https://horizons.hackclub.com/)!
+This is a *native* android (and now desktop and web!) client for [classcharts](https://www.tes.com/en-gb/for-schools/class-charts) (the horrendous student management system my school switched to this year) written in kotlin with the jetpack compose framework for hack club's [midnight](http://midnight.hackclub.com), and now continued for [horizons](https://horizons.hackclub.com/)!
 
 The minimum SDK for this app is 26, and to you that means that the minimum android version is android 8 (oreo)
 
@@ -8,7 +8,17 @@ The minimum SDK for this app is 26, and to you that means that the minimum andro
 
 Login with classcharts code and date of birth
 
-Functional fetching of homework and timetable
+Functional fetching of homework and timetable, using the new ClassCharts login (see tech notes)
+
+Behaviour tab with positive and negative points, reasons, a week by week chart and recent activity
+
+Works offline: everything is cached on the device and shows instantly, then refreshes in the background
+
+Pull to refresh, and swiping between timetable days with the next and previous days preloaded
+
+Runs on Android, desktop (Windows, macOS, Linux) and in the browser
+
+Attachments like PDFs open in the browser instead of downloading, wherever the file type allows it
 
 Highlights the current lesson on timetable
 
@@ -29,13 +39,36 @@ Once the apk file has downloaded, tap it to open it, click through any complaint
 
 You can then open it from your normal home launcher!
 
+## Desktop
+
+Run it straight from the project:
+
+```
+./gradlew :shared:run
+```
+
+Or build an installer for your system with `./gradlew :shared:packageDistributionForCurrentOS` (it ends up in `shared/build/compose/binaries`).
+
+## Web
+
+ClassCharts doesn't let websites talk to it directly, so the web version comes with a tiny proxy (plain Python, no installs needed) that serves the app and passes requests through:
+
+```
+./gradlew :shared:wasmJsBrowserDistribution
+python3 web-proxy/proxy.py
+```
+
+Then open http://localhost:8787. Each screen has its own address (like `#timetable` or `#behaviour`), so the browser's back and forward buttons and bookmarks work. The proxy only listens on your own computer by default. If you host it for other people, put it behind HTTPS, because codes, dates of birth and session cookies go through it.
+
 ## For reviewers for a demo
 
 On the login page, login using the classcharts code `demo` and the date of birth doesn't matter
 
-Do note that ticking homeworks may cause a crash in demo (but not before you get to see the fun animation!) and changing the filtering of ticked homeworks does not work in the demo, due to not having an actual demo user account. I would create a real user, but i can't, only a school can create users. Also, opening pdfs won't work because you have to be logged in for the link from classcharts to work otherwise it expires (The links that the demo attachments have are expired)
+The demo works fully offline with made up homework, timetable and behaviour, including ticking and filtering homework. I would create a real user, but i can't, only a school can create users. Attachments in the demo point to placeholder links.
 
 ## Tech notes
+
+In April 2026 ClassCharts put its API behind a Tes single sign on check, which broke the old `/apiv2student/login` way of logging in ([this thread](https://github.com/classchartsapi/api-docs/issues/17) explains it). The app now logs in through the normal website login form, keeps the `cc-session` cookie it gets back, and sends that cookie along with the `Authorization: Basic <session_id>` header on every request. It pings every couple of minutes to keep the session alive and logs back in by itself if the session expires.
 
 [I've since improved on this!!] This app (currently) has so many ui thread blocking things, which is bad, and has network on main thread which i have to bypass to let the app even run. There is currently not much error handling (but I'm in the process of adding more), so it is likely it can crash or give no output if something weird happens internally.
 
@@ -47,21 +80,21 @@ I did not use AI to write code, however I did use it to help with fixing depende
 
 Here is my todo list for this app, in no particular order:
 
-Make ticking a homework work on the actual homework page
+~~Make ticking a homework work on the actual homework page~~ done!
 
 ~~Add swiping between timetable days~~ done!
 
 Ability to add a note on homework (needs a database - in the process of adding a database)
 
-Offline mode (needs a database - in the process of adding a database) - kind of done but sometimes it still likes to crash for mysterious reasons
+~~Offline mode~~ done!
 
-Shade incomplete homeworks a different colour in the list
+~~Shade incomplete homeworks a different colour in the list~~ done! (completed ones fade out)
 
-Fix ui thread blocking - improved on!
+~~Fix ui thread blocking~~ done! (no more runBlocking anywhere)
 
 Figure out why the calendar is jittery to expand and collapse
 
-Add loading wheels and nice error handling
+~~Add loading wheels and nice error handling~~ done!
 
 Export timetable and import someone else's?
 

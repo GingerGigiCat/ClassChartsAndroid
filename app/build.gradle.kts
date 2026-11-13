@@ -2,8 +2,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    kotlin("plugin.serialization") version "1.9.22"
-    id("com.google.devtools.ksp")
     id("org.jetbrains.compose") version "1.11.1"
 }
 
@@ -35,11 +33,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = rootProject.extra["kotlinJvmTarget"] as String
-    }
     buildFeatures {
         compose = true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 
@@ -66,23 +67,6 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation("com.squareup.okhttp3:okhttp:4.11.0")
-    implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
-    implementation("com.google.code.gson:gson:2.8.5")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    implementation("androidx.datastore:datastore-preferences:1.1.7")
-    implementation("androidx.datastore:datastore:1.2.0")
-    implementation("io.arrow-kt:arrow-core:2.0.0")
-    implementation("io.arrow-kt:arrow-fx-coroutines:2.0.0")
-    implementation("androidx.appcompat:appcompat:1.3.1")
-
     implementation(project(":shared"))
-
-
-    val room_version = "2.8.4"
-    implementation("androidx.room:room-runtime:${room_version}")
-    ksp("androidx.room:room-compiler:$room_version")
-    // optional - Kotlin Extensions and Coroutines support for Room
-    implementation("androidx.room:room-ktx:${room_version}")
 
 }

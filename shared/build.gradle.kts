@@ -1,26 +1,16 @@
-import org.jetbrains.compose.resources.ResourcesExtension
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.android.lint)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.androidx.room)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.kotlin.compose)
-    kotlin("plugin.serialization") version "1.9.22"
+    alias(libs.plugins.kotlin.serialization)
 }
-
-room {
-    schemaDirectory("$projectDir/schemas")
-}
-
 
 kotlin {
-
-    // Target declarations - add or remove as needed below. These define
-    // which platforms this KMP module supports.
-    // See: https://kotlinlang.org/docs/multiplatform-discover-project.html#targets
     androidLibrary {
         namespace = "com.gigi.cca.shared"
         androidResources.enable = true
@@ -30,69 +20,36 @@ kotlin {
             }
         }
         minSdk = 26
-
-        withHostTestBuilder {
-        }
-
-        withDeviceTestBuilder {
-            sourceSetTreeName = "test"
-        }.configure {
-            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        }
     }
 
-    //linuxX64()
+    // Desktop (Windows, macOS, Linux)
     jvm()
 
-    // For iOS targets, this is also where you should
-    // configure native binary output. For more information, see:
-    // https://kotlinlang.org/docs/multiplatform-build-native-binaries.html#build-xcframeworks
+    // Web (Kotlin/Wasm). Needs the proxy in web-proxy/ because ClassCharts blocks browser requests.
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        outputModuleName = "classcharts"
+        browser {
+            commonWebpackConfig {
+                outputFileName = "classcharts.js"
+            }
+        }
+        binaries.executable()
+    }
 
-    // A step-by-step guide on how to include this library in an XCode
-    // project can be found here:
-    // https://developer.android.com/kotlin/multiplatform/migrate
-    val xcfName = "sharedKit"
-
-
-
-    // Source set declarations.
-    // Declaring a target automatically creates a source set with the same name. By default, the
-    // Kotlin Gradle Plugin creates additional source sets that depend on each other, since it is
-    // common to share sources between related targets.
-    // See: https://kotlinlang.org/docs/multiplatform-hierarchy.html
     sourceSets {
         commonMain {
-            //resources.srcDir("src/commonMain/resources")
-
             dependencies {
-                implementation(libs.kotlin.stdlib)
-                // Add KMP dependencies here
-
-
-                //implementation("com.squareup.okhttp3:okhttp:4.11.0")
-                //implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
-                implementation("me.sujanpoudel.multiplatform.utils:multiplatform-paths:0.2.2")
-                implementation("com.google.code.gson:gson:2.8.5")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-                implementation("androidx.datastore:datastore-preferences:1.1.7")
-                implementation("androidx.datastore:datastore:1.2.0")
-                implementation("io.arrow-kt:arrow-core:2.0.0")
-                implementation("io.arrow-kt:arrow-fx-coroutines:2.0.0")
-                //implementation("androidx.appcompat:appcompat:1.3.1")
-                implementation(libs.androidx.room.runtime)
-                implementation(libs.androidx.sqlite.bundled)
-                implementation(libs.androidx.datastore.preferences.core)
-                implementation(libs.ktor.client.core)
-                implementation("co.touchlab:kermit:2.0.4") // Logger
+                implementation(compose.runtime)
                 implementation(compose.ui)
                 implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation("be.digitalia.compose.htmlconverter:htmlconverter:1.1.1")
-                implementation("org.jetbrains.compose.ui:ui-tooling-preview:1.10.0")
-                implementation(compose.components.resources)
+                implementation("org.jetbrains.compose.material3:material3:1.9.0")
                 implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.2")
-                implementation("io.ktor:ktor-client-content-negotiation:${libs.versions.ktor.get()}")
-                implementation("io.ktor:ktor-serialization-kotlinx-json:${libs.versions.ktor.get()}")
+                implementation("be.digitalia.compose.htmlconverter:htmlconverter:1.1.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+                implementation(libs.ktor.client.core)
+                implementation("co.touchlab:kermit:2.0.4")
             }
         }
 
@@ -104,57 +61,35 @@ kotlin {
 
         androidMain {
             dependencies {
-                // Add Android-specific dependencies here. Note that this source set depends on
-                // commonMain by default and will correctly pull the Android artifacts of any KMP
-                // dependencies declared in commonMain.
                 implementation(libs.androidx.core.ktx)
-                implementation(libs.androidx.lifecycle.runtime.ktx)
                 implementation(libs.androidx.activity.compose)
-                implementation(project.dependencies.platform(libs.androidx.compose.bom))
-                implementation(libs.androidx.ui)
-                implementation(libs.androidx.ui.graphics)
-                implementation(libs.androidx.ui.tooling.preview)
-                implementation(libs.androidx.material3)
-                implementation(libs.androidx.compose.ui.text)
-                implementation(libs.androidx.navigation.compose)
-                implementation(libs.androidx.compose.ui.unit)
-
-                implementation(libs.androidx.compose.animation)
-                implementation(libs.androidx.compose.material3)
-                implementation(libs.material3)
                 implementation(libs.ktor.client.okhttp)
             }
         }
 
-        getByName("androidDeviceTest") {
+        jvmMain {
             dependencies {
-                implementation(libs.androidx.runner)
-                implementation(libs.androidx.core)
-                implementation(libs.androidx.junit)
+                implementation(compose.desktop.currentOs)
+                implementation(libs.ktor.client.okhttp)
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
             }
         }
 
-        iosMain {
+        wasmJsMain {
             dependencies {
-                // Add iOS-specific dependencies here. This a source set created by Kotlin Gradle
-                // Plugin (KGP) that each specific iOS target (e.g., iosX64) depends on as
-                // part of KMP’s default source set hierarchy. Note that this source set depends
-                // on common by default and will correctly pull the iOS artifacts of any
-                // KMP dependencies declared in commonMain.
-                implementation(libs.ktor.client.darwin)
+                implementation("io.ktor:ktor-client-js:${libs.versions.ktor.get()}")
             }
         }
     }
-
 }
 
-compose.resources {
-    publicResClass = true
-    generateResClass = ResourcesExtension.ResourceClassGeneration.Always
-    packageOfResClass = "com.gigi.cca.shared.resources"
-}
-
-dependencies {
-    add("kspAndroid", libs.androidx.room.compiler)
-    add("kspJvm", libs.androidx.room.compiler)
+compose.desktop {
+    application {
+        mainClass = "com.gigi.cca.shared.MainKt"
+        nativeDistributions {
+            targetFormats(TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.Msi, TargetFormat.Dmg)
+            packageName = "ClassCharts"
+            packageVersion = "1.0.0"
+        }
+    }
 }
