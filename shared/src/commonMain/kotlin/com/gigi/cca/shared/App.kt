@@ -60,7 +60,7 @@ import kotlinx.serialization.Serializable
 class App(private val context: Any? = null) {
     @Composable
     fun Ui(onNavHostReady: suspend (NavController) -> Unit = {}) {
-        val repository = remember { sharedRepository(context) }
+        val repository = remember { appRepository(context) }
         ClassChartsAndroidTheme { AppRoot(repository, onNavHostReady) }
     }
 }
@@ -68,7 +68,8 @@ class App(private val context: Any? = null) {
 // One repository per process, so rotating the phone doesn't reload everything.
 private var repositoryInstance: Repository? = null
 
-private fun sharedRepository(context: Any?): Repository =
+/** The app's data and ClassCharts connection. Also used by the Wear OS app. */
+fun appRepository(context: Any?): Repository =
     repositoryInstance ?: Repository(createStore(context)).also { repositoryInstance = it }
 
 // The serial names are what show up in the browser address bar on web, e.g. #timetable.

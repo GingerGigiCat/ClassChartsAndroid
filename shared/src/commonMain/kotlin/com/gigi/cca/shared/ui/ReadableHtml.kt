@@ -12,11 +12,16 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.style.TextDecoration
+import com.gigi.cca.shared.model.Homework
 import be.digitalia.compose.htmlconverter.HtmlStyle
 import be.digitalia.compose.htmlconverter.htmlToAnnotatedString
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+
+/** The description as plain text, for small screens like the watch. */
+fun Homework.descriptionText(): String =
+    htmlToAnnotatedString(normalizeTeacherHtml(description)).text.trim()
 
 /** WCAG AA contrast for normal text. */
 private const val MIN_CONTRAST = 4.5f

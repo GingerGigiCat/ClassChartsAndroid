@@ -10,6 +10,7 @@ import com.gigi.cca.shared.model.BehaviourData
 import com.gigi.cca.shared.model.Homework
 import com.gigi.cca.shared.model.Lesson
 import com.gigi.cca.shared.model.Student
+import com.gigi.cca.shared.parseDate
 import com.gigi.cca.shared.plusDays
 import com.gigi.cca.shared.startOfSchoolYear
 import com.gigi.cca.shared.startOfWeek
@@ -21,7 +22,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -57,8 +61,11 @@ private const val KEY_SESSION = "session"
 private const val KEY_HOMEWORKS = "homeworks"
 private const val KEY_LESSONS = "lessons"
 private const val KEY_BEHAVIOUR = "behaviour"
+private const val KEY_TASKS = "custom_tasks"
 private const val KEY_HIDE_COMPLETED = "hide_completed"
-private val DATA_KEYS = listOf(KEY_CREDENTIALS, KEY_SESSION, KEY_HOMEWORKS, KEY_LESSONS, KEY_BEHAVIOUR)
+private val DATA_KEYS = listOf(KEY_CREDENTIALS, KEY_SESSION, KEY_HOMEWORKS, KEY_TASKS, KEY_LESSONS, KEY_BEHAVIOUR)
+
+private val HOMEWORK_ORDER = compareBy<Homework>({ it.dueDate }, { it.subject }, { it.title })
 
 /**
  * Single source of truth for the UI. Everything is shown from the on-disk cache straight away
@@ -85,8 +92,13 @@ class Repository(
     val auth: StateFlow<AuthState> = _auth
     val loginMessage = MutableStateFlow<String?>(null)
 
-    private val _homeworks = MutableStateFlow<List<Homework>>(emptyList())
-    val homeworks: StateFlow<List<Homework>> = _homeworks
+    private val _classChartsHomework = MutableStateFlow<List<Homework>>(emptyList())
+    private val _tasks = MutableStateFlow<List<Homework>>(emptyList())
+
+    /** ClassCharts homework and the user's own tasks together, in due date order. */
+    val homeworks: StateFlow<List<Homework>> = combine(_classChartsHomework, _tasks) { homework, tasks ->
+        (homework + tasks).sortedWith(HOMEWORK_ORDER)
+    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
     private val _homeworkState = MutableStateFlow(LoadState())
     val homeworkState: StateFlow<LoadState> = _homeworkState
     private val _hideCompleted = MutableStateFlow(true)
@@ -116,7 +128,8 @@ class Repository(
         }
         demo = creds.code == DEMO_CODE
         val session = load<Session>(KEY_SESSION)
-        _homeworks.value = load(KEY_HOMEWORKS) ?: if (demo) Demo.homeworks(today()) else emptyList()
+        _classChartsHomework.value = load(KEY_HOMEWORKS) ?: if (demo) Demo.homeworks(today()) else emptyList()
+        _tasks.value = load(KEY_TASKS) ?: emptyList()
         _lessons.value = load(KEY_LESSONS) ?: emptyMap()
         _behaviour.value = load(KEY_BEHAVIOUR) ?: emptyMap()
         api.restore(creds, session)
@@ -149,7 +162,7 @@ class Repository(
     private fun startSession(creds: Credentials, student: Student?, isDemo: Boolean) {
         clearData()
         demo = isDemo
-        if (isDemo) _homeworks.value = Demo.homeworks(today())
+        if (isDemo) _classChartsHomework.value = Demo.homeworks(today())
         persist(KEY_CREDENTIALS, creds)
         _auth.value = AuthState.LoggedIn(student, isDemo)
     }
@@ -169,7 +182,8 @@ class Repository(
         homeworksFetchedAt = null
         fetchedDays.clear()
         fetchedBehaviour.clear()
-        _homeworks.value = emptyList()
+        _classChartsHomework.value = emptyList()
+        _tasks.value = emptyList()
         _homeworkState.value = LoadState()
         _lessons.value = emptyMap()
         _lessonStates.value = emptyMap()
@@ -192,8 +206,8 @@ class Repository(
             val list = guarded({ _homeworkState.value = LoadState(error = it) }) {
                 api.homeworks(t.plusDays(-45), t.plusDays(366))
             } ?: return@launch
-            val sorted = list.sortedWith(compareBy({ it.dueDate }, { it.subject }, { it.title }))
-            _homeworks.value = sorted
+            val sorted = list.sortedWith(HOMEWORK_ORDER)
+            _classChartsHomework.value = sorted
             homeworksFetchedAt = TimeSource.Monotonic.markNow()
             _homeworkState.value = LoadState()
             persist(KEY_HOMEWORKS, sorted)
@@ -202,7 +216,11 @@ class Repository(
 
     /** Optimistic: the tick shows instantly and is undone if ClassCharts rejects it. */
     fun toggleHomework(id: Int) {
-        val homework = _homeworks.value.firstOrNull { it.id == id } ?: return
+        _tasks.value.firstOrNull { it.id == id }?.let { task ->
+            updateTasks { list -> list.map { if (it.id == id) it.copy(ticked = !task.ticked) else it } }
+            return
+        }
+        val homework = _classChartsHomework.value.firstOrNull { it.id == id } ?: return
         setTicked(id, !homework.ticked)
         if (demo) return
         scope.launch {
@@ -214,9 +232,54 @@ class Repository(
     }
 
     private fun setTicked(id: Int, ticked: Boolean) {
-        _homeworks.update { list -> list.map { if (it.id == id) it.copy(ticked = ticked) else it } }
-        persist(KEY_HOMEWORKS, _homeworks.value)
+        _classChartsHomework.update { list -> list.map { if (it.id == id) it.copy(ticked = ticked) else it } }
+        persist(KEY_HOMEWORKS, _classChartsHomework.value)
     }
+
+    // ---- Custom tasks ----
+
+    /** Adds one of the user's own tasks. They're stored on this device only. */
+    fun addTask(title: String, subject: String, due: LocalDate, notes: String) {
+        updateTasks { list ->
+            val id = -(1 + (list.maxOfOrNull { -it.id } ?: 0))
+            list + taskOf(id, title, subject, due, notes, issued = today(), ticked = false)
+        }
+    }
+
+    fun updateTask(id: Int, title: String, subject: String, due: LocalDate, notes: String) {
+        updateTasks { list ->
+            list.map {
+                if (it.id != id) it
+                else taskOf(id, title, subject, due, notes, issued = parseDate(it.issueDate) ?: today(), ticked = it.ticked)
+            }
+        }
+    }
+
+    fun deleteTask(id: Int) = updateTasks { list -> list.filterNot { it.id == id } }
+
+    private fun updateTasks(change: (List<Homework>) -> List<Homework>) {
+        _tasks.update(change)
+        persist(KEY_TASKS, _tasks.value)
+    }
+
+    private fun taskOf(id: Int, title: String, subject: String, due: LocalDate, notes: String, issued: LocalDate, ticked: Boolean) =
+        Homework(
+            id = id,
+            statusId = id,
+            title = title.trim(),
+            subject = subject.trim(),
+            description = notesToHtml(notes.trim()),
+            preview = notes.trim().replace(Regex("\\s+"), " ").take(240),
+            issueDate = issued.toString(),
+            dueDate = due.toString(),
+            ticked = ticked,
+            custom = true,
+            notes = notes.trim(),
+        )
+
+    private fun notesToHtml(notes: String): String = notes
+        .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        .replace("\n", "<br>")
 
     fun setHideCompleted(hide: Boolean) {
         _hideCompleted.value = hide

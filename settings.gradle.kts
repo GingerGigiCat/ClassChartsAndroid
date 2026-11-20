@@ -43,3 +43,4 @@ dependencyResolutionManagement {
 rootProject.name = "ClassChartsAndroid"
 include(":app")
 include(":shared")
+include(":wear")

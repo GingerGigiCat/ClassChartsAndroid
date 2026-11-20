@@ -25,18 +25,21 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -128,6 +131,18 @@ fun HomeworkListScreen(repository: Repository, onOpen: (Int) -> Unit) {
     val todayIndex = rows.indexOfFirst { it is ListRow.TodayBar }
     val toDo = homeworks.count { !it.ticked && it.dueDate >= todayKey }
 
+    var showAddTask by rememberSaveable { mutableStateOf(false) }
+    if (showAddTask) {
+        TaskEditorDialog(
+            existing = null,
+            onDismiss = { showAddTask = false },
+            onSave = { title, subject, due, notes ->
+                repository.addTask(title, subject, due, notes)
+                showAddTask = false
+            },
+        )
+    }
+
     val listState = rememberLazyListState()
     var scrolledToToday by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(todayIndex >= 0) {
@@ -146,13 +161,18 @@ fun HomeworkListScreen(repository: Repository, onOpen: (Int) -> Unit) {
             AppTopBar("Homework", repository, refreshing = state.loading, onRefresh = { repository.refreshHomeworks() })
         },
         floatingActionButton = {
-            AnimatedVisibility(visible = !todayOnScreen, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
-                val above = listState.firstVisibleItemIndex > todayIndex
-                ExtendedFloatingActionButton(
-                    onClick = { scope.launch { listState.animateScrollToItem(todayIndex) } },
-                    icon = { Icon(if (above) AppIcons.ArrowUp else AppIcons.ArrowDown, null) },
-                    text = { Text("Today") },
-                )
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AnimatedVisibility(visible = !todayOnScreen, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
+                    val above = listState.firstVisibleItemIndex > todayIndex
+                    ExtendedFloatingActionButton(
+                        onClick = { scope.launch { listState.animateScrollToItem(todayIndex) } },
+                        icon = { Icon(if (above) AppIcons.ArrowUp else AppIcons.ArrowDown, null) },
+                        text = { Text("Today") },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+                FloatingActionButton(onClick = { showAddTask = true }) { Icon(AppIcons.Add, "Add a task") }
             }
         },
     ) { padding ->
@@ -269,7 +289,8 @@ private fun TodayBar(date: LocalDate) {
 }
 
 private fun Homework.subtitle(): String =
-    listOf(subject, teacher, completionTime).filter { it.isNotBlank() }.joinToString(" · ")
+    (if (custom) listOf("My task", subject) else listOf(subject, teacher, completionTime))
+        .filter { it.isNotBlank() }.joinToString(" · ")
 
 @Composable
 private fun HomeworkCard(homework: Homework, onOpen: () -> Unit, onToggle: () -> Unit, modifier: Modifier = Modifier) {
@@ -323,6 +344,8 @@ fun HomeworkDetailScreen(repository: Repository, id: Int, onBack: () -> Unit) {
     val homeworks by repository.homeworks.collectAsState()
     val homework = homeworks.firstOrNull { it.id == id }
     val openUrl = rememberUrlOpener()
+    var editing by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -331,12 +354,43 @@ fun HomeworkDetailScreen(repository: Repository, id: Int, onBack: () -> Unit) {
                 title = { Text(homework?.subject?.ifBlank { null } ?: "Homework", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(AppIcons.ArrowBack, "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                actions = {
+                    if (homework?.custom == true) {
+                        IconButton(onClick = { editing = true }) { Icon(AppIcons.Edit, "Edit task") }
+                        IconButton(onClick = { confirmDelete = true }) { Icon(AppIcons.Delete, "Delete task") }
+                    }
+                },
             )
         },
     ) { padding ->
         if (homework == null) {
             EmptyMessage("This homework isn't available any more.", Modifier.padding(padding))
             return@Scaffold
+        }
+        if (editing) {
+            TaskEditorDialog(
+                existing = homework,
+                onDismiss = { editing = false },
+                onSave = { title, subject, due, notes ->
+                    repository.updateTask(homework.id, title, subject, due, notes)
+                    editing = false
+                },
+            )
+        }
+        if (confirmDelete) {
+            AlertDialog(
+                onDismissRequest = { confirmDelete = false },
+                title = { Text("Delete this task?") },
+                text = { Text("\"${homework.title}\" will be removed from this device.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmDelete = false
+                        repository.deleteTask(homework.id)
+                        onBack()
+                    }) { Text("Delete") }
+                },
+                dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+            )
         }
         val body = rememberHomeworkBody(homework.description)
         val scrollState = rememberScrollState()
@@ -347,7 +401,7 @@ fun HomeworkDetailScreen(repository: Repository, id: Int, onBack: () -> Unit) {
                     Text(homework.subtitle(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         InfoPill(
-                            "Set ${parseDate(homework.issueDate)?.shortLabel() ?: "?"}",
+                            "${if (homework.custom) "Added" else "Set"} ${parseDate(homework.issueDate)?.shortLabel() ?: "?"}",
                             MaterialTheme.colorScheme.secondaryContainer,
                             MaterialTheme.colorScheme.onSecondaryContainer,
                             Modifier.weight(1f),

@@ -47,7 +47,7 @@ kotlin {
                 implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.2")
                 implementation("be.digitalia.compose.htmlconverter:htmlconverter:1.1.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+                api("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1") // in the Repository API, used by the wear app
                 implementation(libs.ktor.client.core)
                 implementation("co.touchlab:kermit:2.0.4")
             }

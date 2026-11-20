@@ -16,7 +16,9 @@ Works offline: everything is cached on the device and shows instantly, then refr
 
 Pull to refresh, and swiping between timetable days with the next and previous days preloaded
 
-Runs on Android, desktop (Windows, macOS, Linux) and in the browser
+Add your own tasks alongside your homework, with a due date, subject and notes (they stay on your device)
+
+Runs on Android, Wear OS, desktop (Windows, macOS, Linux) and in the browser
 
 Attachments like PDFs open in the browser instead of downloading, wherever the file type allows it
 
@@ -38,6 +40,17 @@ To download the apk, go to [releases](https://github.com/GingerGigiCat/ClassChar
 Once the apk file has downloaded, tap it to open it, click through any complaints from your phone about being allowed to install from unknown sources (this isn't sketchy! It's [normal for sideloading](https://www.wikihow.com/Allow-Apps-from-Unknown-Sources-on-Android), I promise), and it should install!
 
 You can then open it from your normal home launcher!
+
+## Wear OS
+
+There's a watch app too. Swipe left and right between homework, timetable and behaviour, and scroll down through the days. It logs in to ClassCharts by itself, so it works without the phone app. Tap a homework to read it, or its tick box to mark it done.
+
+To install it, turn on ADB debugging on the watch, connect to it with `adb connect`, then:
+
+```
+./gradlew :wear:assembleDebug
+adb install wear/build/outputs/apk/debug/wear-debug.apk
+```
 
 ## Desktop
 

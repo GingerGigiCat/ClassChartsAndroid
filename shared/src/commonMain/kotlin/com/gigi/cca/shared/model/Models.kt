@@ -31,6 +31,10 @@ data class Homework(
     val completionTime: String = "",
     val ticked: Boolean = false,
     val attachments: List<Attachment> = emptyList(),
+    /** A task the user added themselves. These only live on this device and have negative ids. */
+    val custom: Boolean = false,
+    /** The user's own text for a custom task (its description is this as HTML). */
+    val notes: String = "",
 )
 
 @Serializable

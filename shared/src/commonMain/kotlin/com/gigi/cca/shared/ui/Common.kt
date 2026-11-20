@@ -130,7 +130,7 @@ fun AppTopBar(title: String, repository: Repository, refreshing: Boolean, onRefr
         AlertDialog(
             onDismissRequest = { confirmLogout = false },
             title = { Text("Log out?") },
-            text = { Text("Your saved homework, timetable and behaviour will be removed from this device.") },
+            text = { Text("Your saved homework, timetable, behaviour and your own tasks will be removed from this device.") },
             confirmButton = {
                 TextButton(onClick = { confirmLogout = false; repository.logout() }) { Text("Log out") }
             },
